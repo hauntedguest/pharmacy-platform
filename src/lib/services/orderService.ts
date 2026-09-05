@@ -43,29 +43,32 @@ export const orderService = {
     let totalAmount = 0;
     let isColdChain = false;
 
-    const orderItems: OrderItemRecord[] = input.items.map((item) => {
-      const lineTotal = item.unitPrice * item.quantity;
+    const orderItems: OrderItemRecord[] = (input.items || []).map((item) => {
+      const lineTotal = (item.unitPrice || 0) * (item.quantity || 1);
       totalAmount += lineTotal;
       // If item is cold-chain formulation (e.g. Omega-3 softgels or live probiotics)
+      const pName = (item.productName || "").toLowerCase();
       if (
-        item.productName.toLowerCase().includes("omega") ||
-        item.productName.toLowerCase().includes("probiotic") ||
-        item.productName.toLowerCase().includes("insulin")
+        pName.includes("omega") ||
+        pName.includes("probiotic") ||
+        pName.includes("insulin") ||
+        pName.includes("d3")
       ) {
         isColdChain = true;
       }
       return {
-        productId: item.productId,
-        productName: item.productName,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
+        productId: item.productId || "PROD-GEN",
+        productName: item.productName || "MediCare Formulation",
+        quantity: item.quantity || 1,
+        unitPrice: item.unitPrice || 0,
         totalPrice: lineTotal,
       };
     });
 
     // 4-digit statutory delivery verification OTP for safe medication handover
     const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
-    const trackingNumber = `MCP-EXP-${input.shippingCity.substring(0, 3).toUpperCase()}-${Math.floor(10000 + Math.random() * 90000)}`;
+    const cityCode = (input.shippingCity || "IND").trim().substring(0, 3).toUpperCase() || "IND";
+    const trackingNumber = `MCP-EXP-${cityCode}-${Math.floor(10000 + Math.random() * 90000)}`;
 
     const newOrder = await db.createOrder({
       customerName: input.customerName,

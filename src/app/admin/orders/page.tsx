@@ -27,7 +27,7 @@ interface Order {
   items: { name: string; qty: number; price: number }[];
   totalAmount: number;
   paymentMethod: string;
-  status: "Verified" | "Dispensing" | "Dispatched" | "Delivered";
+  status: "Verified" | "Dispensing" | "Dispatched" | "Out for Delivery" | "Delivered" | "Cancelled";
   isColdChain: boolean;
   coldChainTemp: string;
   date: string;
@@ -297,7 +297,7 @@ export default function AdminOrdersPage() {
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                         order.status === "Delivered"
                           ? "bg-slate-500/10 border-slate-500/30 text-slate-400"
-                          : order.status === "Dispatched"
+                          : order.status === "Dispatched" || order.status === "Out for Delivery"
                           ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
                           : order.status === "Dispensing"
                           ? "bg-blue-500/10 border-blue-500/30 text-blue-300"

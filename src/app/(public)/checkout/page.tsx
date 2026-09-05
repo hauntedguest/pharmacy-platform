@@ -168,11 +168,11 @@ export default function CheckoutPage() {
         shippingCity: address.city,
         shippingState: address.state,
         shippingPincode: address.pinCode,
-        items: items.map((item) => ({
-          productId: item.id,
-          productName: item.name,
-          quantity: item.quantity,
-          unitPrice: item.price,
+        items: items.map(({ product, quantity }) => ({
+          productId: product.id,
+          productName: product.name,
+          quantity: quantity,
+          unitPrice: product.price,
         })),
         paymentMethod:
           paymentMethod === "upi"
