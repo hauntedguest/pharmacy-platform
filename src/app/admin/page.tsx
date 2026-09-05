@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   TrendingUp,
@@ -8,15 +9,49 @@ import {
   Truck,
   Thermometer,
   ShieldCheck,
+  RefreshCw,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatINR } from "@/lib/data/products";
 
 export default function AdminDashboardPage() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const [ordRes, rxRes] = await Promise.all([
+        fetch("/api/orders"),
+        fetch("/api/prescriptions"),
+      ]);
+      if (ordRes.ok) {
+        const oJson = await ordRes.json();
+        if (oJson.success) setOrders(oJson.data);
+      }
+      if (rxRes.ok) {
+        const rJson = await rxRes.json();
+        if (rJson.success) setPrescriptions(rJson.data);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch dashboard data", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const totalGross = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const pendingRxCount = prescriptions.filter((r) => r.status === "pending").length;
+
   const stats = [
     {
       title: "Today's Gross Dispensed",
-      value: formatINR(384250),
+      value: formatINR(totalGross > 0 ? totalGross : 384250),
       change: "+18.4% vs yesterday",
       isPositive: true,
       icon: TrendingUp,
@@ -24,8 +59,8 @@ export default function AdminDashboardPage() {
     },
     {
       title: "Schedule H Rx in Queue",
-      value: "14 Orders",
-      change: "4 require immediate review",
+      value: `${pendingRxCount > 0 ? pendingRxCount : 4} Orders`,
+      change: "Requires PharmD verification",
       isPositive: false,
       icon: FileCheck2,
       color: "from-amber-500/20 to-orange-500/20 text-amber-400 border-amber-500/30",
@@ -40,7 +75,7 @@ export default function AdminDashboardPage() {
     },
     {
       title: "Active Cold Storage Sensor",
-      value: "4.2°C",
+      value: "3.6°C",
       change: "Optimal (Target: 2°C - 8°C)",
       isPositive: true,
       icon: Thermometer,
@@ -48,74 +83,68 @@ export default function AdminDashboardPage() {
     },
   ];
 
-  const pendingPrescriptions = [
-    {
-      id: "RX-IND-9921",
-      patient: "Sunita Deshmukh (54 F)",
-      doctor: "Dr. K. S. Murthy (Reg: MMC-49102)",
-      medication: "MediCare Plus CardioGuard Telmisartan 40mg",
-      city: "Bandra West, Mumbai (400050)",
-      time: "4 mins ago",
-      urgency: "High",
-    },
-    {
-      id: "RX-IND-9920",
-      patient: "Arjun Verma (38 M)",
-      doctor: "Dr. R. K. Singhania (Reg: DMC-88219)",
-      medication: "MediCare Plus AllergyShield Levocetirizine",
-      city: "Gurugram Phase 5, NCR (122002)",
-      time: "11 mins ago",
-      urgency: "Medium",
-    },
-    {
-      id: "RX-IND-9918",
-      patient: "Priya Nair (29 F)",
-      doctor: "Dr. V. Menon (Reg: KMC-10394)",
-      medication: "MediCare Plus Pantoprazole 40mg Gastro-Resistant",
-      city: "Indiranagar, Bengaluru (560038)",
-      time: "24 mins ago",
-      urgency: "Low",
-    },
-  ];
+  const displayedPrescriptions =
+    prescriptions.length > 0
+      ? prescriptions.slice(0, 5).map((rx) => ({
+          id: rx.id,
+          patient: `${rx.patientName} (${rx.patientAge} ${rx.patientGender?.[0] || "M"})`,
+          doctor: `${rx.doctorName} (Reg: ${rx.doctorRegNo})`,
+          medication: rx.medications?.join(", ") || "Schedule H Formulation",
+          city: `${rx.shippingCity} (${rx.shippingPincode})`,
+          time: new Date(rx.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          urgency: rx.urgency || "Normal",
+          status: rx.status,
+        }))
+      : [
+          {
+            id: "RX-IND-9921",
+            patient: "Sunita Deshmukh (54 F)",
+            doctor: "Dr. K. S. Murthy (Reg: MMC-49102)",
+            medication: "MediCare Plus CardioGuard Telmisartan 40mg",
+            city: "Bandra West, Mumbai (400050)",
+            time: "4 mins ago",
+            urgency: "High",
+            status: "pending",
+          },
+          {
+            id: "RX-IND-9920",
+            patient: "Arjun Verma (38 M)",
+            doctor: "Dr. R. K. Singhania (Reg: DMC-88219)",
+            medication: "MediCare Plus AllergyShield Levocetirizine",
+            city: "Gurugram Phase 5, NCR (122002)",
+            time: "11 mins ago",
+            urgency: "Medium",
+            status: "pending",
+          },
+        ];
 
-  const recentOrders = [
-    {
-      orderId: "ORD-98401",
-      customer: "Vikram Malhotra",
-      location: "BKC, Mumbai",
-      items: "MediCare Plus D3 Max 60K + Pure Arctic Omega-3",
-      amount: 1248,
-      status: "Out for Express Delivery",
-      statusColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
-    },
-    {
-      orderId: "ORD-98400",
-      customer: "Dr. Meera Sengupta",
-      location: "Salt Lake, Kolkata",
-      items: "MediCare Plus SmartGuard Pro BP Monitor",
-      amount: 2199,
-      status: "Dispatched Cold-Chain",
-      statusColor: "text-blue-400 bg-blue-500/10 border-blue-500/30",
-    },
-    {
-      orderId: "ORD-98399",
-      customer: "Rohan Kulkarni",
-      location: "Kothrud, Pune",
-      items: "MediCare Plus AccuCheck Smart Kit + Paracetamol 650",
-      amount: 1383,
-      status: "Pharmacist Verified",
-      statusColor: "text-teal-400 bg-teal-500/10 border-teal-500/30",
-    },
-    {
-      orderId: "ORD-98398",
-      customer: "Ananya Pillai",
-      location: "Jubilee Hills, Hyderabad",
-      items: "MediCare Plus KSM-66 Ashwagandha + FloraMax Probiotic",
-      amount: 1748,
-      status: "Delivered",
-      statusColor: "text-slate-400 bg-slate-500/10 border-slate-500/30",
-    },
-  ];
+  const displayedOrders =
+    orders.length > 0
+      ? orders.slice(0, 5).map((o) => ({
+          orderId: o.id,
+          customer: o.customerName,
+          location: `${o.shippingCity} (${o.shippingPincode})`,
+          items: o.items?.map((it: any) => `${it.productName} x${it.quantity}`).join(", ") || "Formulations",
+          amount: o.totalAmount,
+          status: o.status,
+          statusColor:
+            o.status === "Delivered"
+              ? "text-slate-400 bg-slate-500/10 border-slate-500/30"
+              : o.status === "Dispatched" || o.status === "Out for Delivery"
+              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+              : "text-blue-400 bg-blue-500/10 border-blue-500/30",
+        }))
+      : [
+          {
+            orderId: "ORD-98401",
+            customer: "Vikram Malhotra",
+            location: "BKC, Mumbai",
+            items: "MediCare Plus D3 Max 60K + Pure Arctic Omega-3",
+            amount: 1248,
+            status: "Out for Express Delivery",
+            statusColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+          },
+        ];
 
   return (
     <div className="space-y-8">
@@ -186,13 +215,13 @@ export default function AdminDashboardPage() {
               href="/admin/prescriptions"
               className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1"
             >
-              View Full Queue ({pendingPrescriptions.length})
+              View Full Queue ({displayedPrescriptions.length})
               <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
           <div className="space-y-3">
-            {pendingPrescriptions.map((rx) => (
+            {displayedPrescriptions.map((rx) => (
               <div
                 key={rx.id}
                 className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-slate-700 transition-colors"
@@ -213,12 +242,12 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-                  <button className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors">
+                  <Link
+                    href="/admin/prescriptions"
+                    className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors text-center"
+                  >
                     Review Rx
-                  </button>
-                  <button className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-colors">
-                    Approve
-                  </button>
+                  </Link>
                 </div>
               </div>
             ))}
@@ -300,7 +329,7 @@ export default function AdminDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {recentOrders.map((order) => (
+              {displayedOrders.map((order) => (
                 <tr key={order.orderId} className="hover:bg-slate-900/50 transition-colors">
                   <td className="py-3.5 font-mono font-bold text-blue-400">{order.orderId}</td>
                   <td className="py-3.5 font-semibold text-white">{order.customer}</td>

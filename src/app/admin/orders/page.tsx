@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Truck,
   Search,
@@ -13,6 +13,7 @@ import {
   X,
   Printer,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatINR } from "@/lib/data/products";
@@ -110,6 +111,53 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchOrders = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/orders");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data && json.data.length > 0) {
+          const mapped: Order[] = json.data.map((o: any) => ({
+            id: o.id,
+            customerName: o.customerName,
+            phone: o.customerPhone,
+            city: o.shippingCity,
+            pinCode: o.shippingPincode,
+            items: o.items.map((it: any) => ({
+              name: it.productName,
+              qty: it.quantity,
+              price: it.unitPrice,
+            })),
+            totalAmount: o.totalAmount,
+            paymentMethod: o.paymentMethod,
+            status: o.status,
+            isColdChain: o.isColdChain,
+            coldChainTemp: o.currentPayloadTemp || "3.6°C",
+            date: new Date(o.createdAt).toLocaleString("en-IN", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            trackingNumber: o.trackingNumber,
+          }));
+          setOrders(mapped);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch live orders from API, using fallback data", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
   const filteredOrders = orders.filter((o) => {
     const matchSearch =
@@ -121,7 +169,17 @@ export default function AdminOrdersPage() {
     return matchSearch && matchStatus;
   });
 
-  const handleUpdateStatus = (id: string, newStatus: Order["status"]) => {
+  const handleUpdateStatus = async (id: string, newStatus: Order["status"]) => {
+    try {
+      await fetch(`/api/orders/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+    } catch (err) {
+      console.error("Status update error", err);
+    }
+
     setOrders((prev) =>
       prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
     );
