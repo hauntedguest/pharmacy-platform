@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { brandConfig } from "@/lib/config/brand";
+import { CartProvider } from "@/context/CartContext";
+import CartDrawer from "@/components/cart/CartDrawer";
 
 export const metadata: Metadata = {
   title: {
@@ -18,10 +20,11 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <CartProvider>
       <Navbar />
       <main className="min-h-screen">{children}</main>
       <Footer />
-    </>
+      <CartDrawer />
+    </CartProvider>
   );
 }

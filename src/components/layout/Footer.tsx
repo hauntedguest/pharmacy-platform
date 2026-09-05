@@ -14,8 +14,9 @@ export default function Footer() {
     products: [
       { label: "Prescription Medications", href: "/products?category=prescription" },
       { label: "Over-the-Counter", href: "/products?category=otc" },
-      { label: "Supplements", href: "/products?category=supplement" },
-      { label: "Medical Devices", href: "/products?category=medical-device" },
+      { label: "Supplements & Immunity", href: "/products?category=supplement" },
+      { label: "Diagnostic Devices", href: "/products?category=medical-device" },
+      { label: "Drug Interaction Analyzer", href: "/interaction-checker" },
     ],
     company: [
       { label: "About Us", href: "/about" },
@@ -24,10 +25,11 @@ export default function Footer() {
       { label: "Blog", href: "/blog" },
     ],
     support: [
-      { label: "Help Center", href: "/help" },
-      { label: "Shipping Info", href: "/shipping" },
-      { label: "Returns", href: "/returns" },
-      { label: "FAQ", href: "/faq" },
+      { label: "Pill Subscriptions & Refills", href: "/account/refills" },
+      { label: "Prescription Vault", href: "/account/prescriptions" },
+      { label: "Shipping & Cold-Chain Info", href: "/about" },
+      { label: "Help Center & WhatsApp", href: "/contact" },
+      { label: "FAQ", href: "/contact" },
     ],
     legal: [
       { label: "Privacy Policy", href: brandConfig.legal.privacyUrl },
@@ -108,7 +110,7 @@ export default function Footer() {
             <h3 className="font-semibold text-white mb-4">Products</h3>
             <ul className="space-y-2 text-sm">
               {footerLinks.products.map((link) => (
-                <li key={link.href}>
+                <li key={link.label}>
                   <Link
                     href={link.href}
                     className="hover:text-white transition-colors"
@@ -125,7 +127,7 @@ export default function Footer() {
             <h3 className="font-semibold text-white mb-4">Company</h3>
             <ul className="space-y-2 text-sm">
               {footerLinks.company.map((link) => (
-                <li key={link.href}>
+                <li key={link.label}>
                   <Link
                     href={link.href}
                     className="hover:text-white transition-colors"
@@ -142,7 +144,7 @@ export default function Footer() {
             <h3 className="font-semibold text-white mb-4">Support</h3>
             <ul className="space-y-2 text-sm">
               {footerLinks.support.map((link) => (
-                <li key={link.href}>
+                <li key={link.label}>
                   <Link
                     href={link.href}
                     className="hover:text-white transition-colors"
@@ -196,7 +198,7 @@ export default function Footer() {
             <div className="flex items-center gap-4 text-sm">
               {footerLinks.legal.map((link) => (
                 <Link
-                  key={link.href}
+                  key={link.label}
                   href={link.href}
                   className="text-gray-400 hover:text-white transition-colors"
                 >

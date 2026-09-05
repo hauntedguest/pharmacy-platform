@@ -7,32 +7,46 @@ export const brandConfig = {
   // Company Identity
   company: {
     name: "MediCare Plus",
-    tagline: "Your Health, Our Priority",
-    description: "Premium pharmaceutical solutions delivered with care and precision",
+    tagline: "Proprietary Formulations, Delivered Nationwide with Cold-Chain Precision",
+    description: "India's premier direct-to-consumer healthcare & wellness brand, formulating and delivering pharmaceutical-grade medicines, supplements, and diagnostic devices directly to your doorstep.",
     logo: "/logo.svg",
     favicon: "/favicon.ico",
+    website: "https://medicareplus.in",
+  },
+
+  // Localization & Currency
+  locale: {
+    country: "India",
+    countryCode: "IN",
+    currency: {
+      symbol: "₹",
+      code: "INR",
+      name: "Indian Rupee",
+    },
+    serviceablePinCodes: "19,000+",
   },
 
   // Contact Information
   contact: {
-    phone: "+1 (555) 123-4567",
-    email: "support@medicareplus.com",
+    phone: "+91 1800 209 8888",
+    whatsapp: "+91 98765 43210",
+    email: "care@medicareplus.in",
     address: {
-      street: "123 Healthcare Avenue",
-      city: "San Francisco",
-      state: "CA",
-      zip: "94102",
-      country: "United States",
+      street: "Tower B, 8th Floor, BKC Innovation Hub, G Block",
+      city: "Mumbai",
+      state: "Maharashtra",
+      zip: "400051",
+      country: "India",
     },
-    hours: "Mon-Fri: 8am-8pm, Sat-Sun: 9am-6pm",
+    hours: "24x7 Customer & Pharmacist Support",
   },
 
   // Social Media
   social: {
-    facebook: "https://facebook.com/medicareplus",
-    twitter: "https://twitter.com/medicareplus",
-    instagram: "https://instagram.com/medicareplus",
-    linkedin: "https://linkedin.com/company/medicareplus",
+    facebook: "https://facebook.com/medicareplusindia",
+    twitter: "https://twitter.com/medicareplusin",
+    instagram: "https://instagram.com/medicareplusindia",
+    linkedin: "https://linkedin.com/company/medicareplus-india",
   },
 
   // Brand Colors (Tailwind CSS compatible)
@@ -96,26 +110,28 @@ export const brandConfig = {
     subscriptions: false, // Phase 3
   },
 
-  // Legal
+  // Legal & Regulatory (India)
   legal: {
     termsUrl: "/terms",
     privacyUrl: "/privacy",
-    pharmacyLicense: "PHM-CA-123456",
+    pharmacyLicense: "DL-MH-MZ1-204912 / DL-MH-MZ1-204913",
+    fssaiLicense: "FSSAI Lic. 10022022000542",
+    gstNumber: "27AABCM1234F1Z8",
   },
 
   // SEO Defaults
   seo: {
-    defaultTitle: "MediCare Plus - Premium Pharmaceutical Solutions",
-    titleTemplate: "%s | MediCare Plus",
+    defaultTitle: "MediCare Plus - India's Premier Digital Pharmacy",
+    titleTemplate: "%s | MediCare Plus India",
     defaultDescription:
-      "Your trusted partner for quality medications, health supplements, and pharmaceutical care. Fast delivery, expert advice, prescription management.",
+      "Buy 100% genuine prescription medicines, vitamins, and healthcare devices online in India. Express 2-hour delivery across Mumbai, Delhi, Bangalore & 19,000+ PIN codes.",
     keywords: [
-      "pharmacy",
-      "medications",
-      "prescriptions",
-      "health supplements",
-      "medical supplies",
-      "online pharmacy",
+      "online pharmacy India",
+      "buy medicine online",
+      "prescription delivery",
+      "health supplements India",
+      "Schedule H medicines",
+      "genuine medicines Mumbai Delhi Bangalore",
     ],
   },
 } as const;
