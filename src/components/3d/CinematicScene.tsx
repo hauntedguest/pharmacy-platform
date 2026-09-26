@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import PharmaCapsule from "./PharmaCapsule";
 import MicroPelletField from "./MicroPelletField";
@@ -15,15 +15,23 @@ interface CinematicSceneProps {
 export default function CinematicScene({ scrollProgress, mousePosition }: CinematicSceneProps) {
   const cameraGroupRef = useRef<THREE.Group>(null);
   const mainLightRef = useRef<THREE.DirectionalLight>(null);
+  const { size } = useThree();
+
+  // Determine viewport aspect ratio and mobile state
+  const isPortraitMobile = size.width < 768 && size.height > size.width;
+  const aspect = size.width / Math.max(1, size.height);
+  // On portrait mobile, calculate responsive camera distance so 3D objects are never clipped
+  const baseCameraZ = isPortraitMobile ? Math.min(7.2, 4.8 / Math.max(0.62, aspect * 1.25)) : 4.8;
+  const verticalShift = isPortraitMobile ? 0.35 : 0;
 
   useFrame((state, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05);
 
     if (cameraGroupRef.current) {
-      // Act I (0-25%): Macro frontal view with subtle mouse parallax
+      // Act I (0-25%): Macro frontal view with interactive touch/mouse parallax
       if (scrollProgress < 0.25) {
-        const targetX = mousePosition.x * 0.25;
-        const targetY = -mousePosition.y * 0.25;
+        const targetX = mousePosition.x * (isPortraitMobile ? 0.15 : 0.25);
+        const targetY = -mousePosition.y * (isPortraitMobile ? 0.15 : 0.25) + verticalShift;
         cameraGroupRef.current.position.x = THREE.MathUtils.damp(
           cameraGroupRef.current.position.x,
           targetX,
@@ -38,7 +46,7 @@ export default function CinematicScene({ scrollProgress, mousePosition }: Cinema
         );
         cameraGroupRef.current.position.z = THREE.MathUtils.damp(
           cameraGroupRef.current.position.z,
-          4.8,
+          baseCameraZ,
           3,
           delta
         );
@@ -52,7 +60,8 @@ export default function CinematicScene({ scrollProgress, mousePosition }: Cinema
       // Act II (25%-50%): Fly into the dispersed particle core
       else if (scrollProgress >= 0.25 && scrollProgress < 0.5) {
         const p = (scrollProgress - 0.25) / 0.25;
-        const targetZ = 4.8 - p * 2.6; // Push closer to particles (z: 2.2)
+        const pushDistance = isPortraitMobile ? 2.0 : 2.6;
+        const targetZ = baseCameraZ - p * pushDistance;
         cameraGroupRef.current.position.z = THREE.MathUtils.damp(
           cameraGroupRef.current.position.z,
           targetZ,
@@ -67,7 +76,7 @@ export default function CinematicScene({ scrollProgress, mousePosition }: Cinema
         );
         cameraGroupRef.current.position.y = THREE.MathUtils.damp(
           cameraGroupRef.current.position.y,
-          0,
+          verticalShift * (1 - p),
           4,
           delta
         );
@@ -78,12 +87,13 @@ export default function CinematicScene({ scrollProgress, mousePosition }: Cinema
           delta
         );
       }
-      // Act III (50%-75%): Orbit 30° and pull back to view the whole synthesized crystal lattice
+      // Act III (50%-75%): Pull back to view the whole synthesized crystal lattice
       else if (scrollProgress >= 0.5 && scrollProgress < 0.75) {
         const p = (scrollProgress - 0.5) / 0.25;
-        const targetX = p * 1.8;
-        const targetZ = 2.2 + p * 3.4; // Pull back to z: 5.6
-        const targetY = p * 0.4;
+        // Restrict horizontal offset on mobile so it stays centered
+        const targetX = isPortraitMobile ? p * 0.25 : p * 1.8;
+        const targetZ = baseCameraZ - (isPortraitMobile ? 2.0 : 2.6) + p * (isPortraitMobile ? 3.0 : 3.4);
+        const targetY = isPortraitMobile ? 0 : p * 0.4;
 
         cameraGroupRef.current.position.x = THREE.MathUtils.damp(
           cameraGroupRef.current.position.x,
@@ -113,15 +123,18 @@ export default function CinematicScene({ scrollProgress, mousePosition }: Cinema
       // Act IV (75%-100%): Float peacefully into ambient background
       else {
         const p = (scrollProgress - 0.75) / 0.25;
+        const targetX = isPortraitMobile ? 0.25 + p * 0.25 : 1.8 + p * 1.2;
+        const targetZ = baseCameraZ + (isPortraitMobile ? 0.8 : 0.8) + p * 1.5;
+
         cameraGroupRef.current.position.x = THREE.MathUtils.damp(
           cameraGroupRef.current.position.x,
-          1.8 + p * 1.2,
+          targetX,
           3,
           delta
         );
         cameraGroupRef.current.position.z = THREE.MathUtils.damp(
           cameraGroupRef.current.position.z,
-          5.6 + p * 1.5,
+          targetZ,
           3,
           delta
         );
@@ -129,7 +142,7 @@ export default function CinematicScene({ scrollProgress, mousePosition }: Cinema
     }
 
     if (mainLightRef.current) {
-      const targetIntensity = scrollProgress > 0.5 ? 1.8 : 1.4;
+      const targetIntensity = scrollProgress > 0.5 ? 2.0 : 1.6;
       mainLightRef.current.intensity = THREE.MathUtils.damp(
         mainLightRef.current.intensity,
         targetIntensity,
@@ -141,12 +154,12 @@ export default function CinematicScene({ scrollProgress, mousePosition }: Cinema
 
   return (
     <>
-      {/* Optimized Studio Lighting without expensive real-time shadow map generation */}
-      <ambientLight intensity={0.7} />
-      <directionalLight ref={mainLightRef} position={[5, 7, 5]} intensity={1.5} color="#FFFFFF" />
-      <directionalLight position={[-5, -3, -4]} intensity={0.6} color="#0D9488" />
-      <pointLight position={[0, 0, 3]} intensity={1.0} color="#60A5FA" distance={10} />
-      <pointLight position={[0, -2, 1]} intensity={0.7} color="#2DD4BF" distance={8} />
+      {/* Optimized Studio Lighting with Vibrant Ambient and Specular Fills */}
+      <ambientLight intensity={0.85} />
+      <directionalLight ref={mainLightRef} position={[5, 7, 5]} intensity={1.8} color="#FFFFFF" />
+      <directionalLight position={[-5, -3, -4]} intensity={0.8} color="#0D9488" />
+      <pointLight position={[0, 1.5, 3]} intensity={1.2} color="#60A5FA" distance={12} />
+      <pointLight position={[0, -1.5, 2]} intensity={1.0} color="#2DD4BF" distance={10} />
 
       {/* Camera Rig & 3D Objects */}
       <group ref={cameraGroupRef}>

@@ -24,9 +24,26 @@ export default function CinematicCanvas({ scrollProgress }: CinematicCanvasProps
       });
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      if (animFrameRef.current || !e.touches[0]) return;
+
+      animFrameRef.current = requestAnimationFrame(() => {
+        const touch = e.touches[0];
+        const x = (touch.clientX / window.innerWidth) * 2 - 1;
+        const y = -(touch.clientY / window.innerHeight) * 2 + 1;
+        setMousePosition({ x, y });
+        animFrameRef.current = null;
+      });
+    };
+
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchstart", handleTouchMove, { passive: true });
+
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchstart", handleTouchMove);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
   }, []);
@@ -42,7 +59,7 @@ export default function CinematicCanvas({ scrollProgress }: CinematicCanvasProps
           stencil: false,
           depth: true,
         }}
-        dpr={[1, 1.5]}
+        dpr={[1, 2]}
         performance={{ min: 0.6 }}
       >
         <Suspense fallback={null}>
@@ -52,3 +69,4 @@ export default function CinematicCanvas({ scrollProgress }: CinematicCanvasProps
     </div>
   );
 }
+

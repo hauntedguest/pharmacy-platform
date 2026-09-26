@@ -136,19 +136,19 @@ export default function HomePage() {
       <CinematicHeroScroll />
 
       {/* Trust Credentials Bar */}
-      <section className="py-12 bg-white border-y border-gray-100">
+      <section className="py-8 sm:py-12 bg-white border-y border-gray-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
             {trustBadges.map((badge, index) => {
               const Icon = badge.icon;
               return (
-                <div key={index} className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/10 to-teal-500/10 border border-blue-100 flex items-center justify-center shrink-0">
-                    <Icon className="w-6 h-6 text-blue-600" />
+                <div key={index} className="flex items-start gap-3 sm:gap-4 p-2 sm:p-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-500/10 to-teal-500/10 border border-blue-100 flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900 text-sm mb-0.5">{badge.title}</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">{badge.description}</p>
+                    <h3 className="font-bold text-gray-900 text-xs sm:text-sm mb-0.5">{badge.title}</h3>
+                    <p className="text-[11px] sm:text-xs text-gray-500 leading-relaxed">{badge.description}</p>
                   </div>
                 </div>
               );
@@ -158,42 +158,42 @@ export default function HomePage() {
       </section>
 
       {/* Categories Section */}
-      <section className="py-20 bg-slate-50">
+      <section className="py-12 sm:py-20 bg-slate-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12">
             <div>
-              <Badge variant="info" className="mb-3">
+              <Badge variant="info" className="mb-2 sm:mb-3 text-[11px] sm:text-xs">
                 Curated Therapeutics
               </Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 tracking-tight">
                 Explore by Clinical Category
               </h2>
             </div>
-            <p className="text-sm text-gray-500 max-w-md mt-2 md:mt-0">
+            <p className="text-xs sm:text-sm text-gray-500 max-w-md mt-1.5 md:mt-0">
               Formulations organized by therapeutic mechanism and biological target.
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6">
             {categories.map((category) => {
               const Icon = category.icon;
               return (
                 <Link key={category.name} href={category.href} className="group">
-                  <div className="h-full bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                  <div className="h-full bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                     <div
-                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${category.color} border flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}
+                      className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br ${category.color} border flex items-center justify-center mb-3 sm:mb-5 group-hover:scale-110 transition-transform duration-300`}
                     >
-                      <Icon className="w-7 h-7" />
+                      <Icon className="w-5 h-5 sm:w-7 sm:h-7" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2 group-hover:text-blue-600 transition-colors">
                       {category.name}
                     </h3>
-                    <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                    <p className="text-[11px] sm:text-xs text-gray-500 leading-relaxed mb-3 sm:mb-4 line-clamp-2 sm:line-clamp-none">
                       {category.description}
                     </p>
-                    <div className="flex items-center text-xs font-semibold text-blue-600 gap-1">
-                      Browse Category
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    <div className="flex items-center text-[11px] sm:text-xs font-semibold text-blue-600 gap-1">
+                      <span>Browse</span>
+                      <ArrowRight className="w-3 sm:w-3.5 h-3 sm:h-3.5 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                 </Link>
@@ -204,17 +204,17 @@ export default function HomePage() {
       </section>
 
       {/* Featured Products Showcase with 3D Tilt Cards */}
-      <section className="py-24 bg-white border-t border-gray-100">
+      <section className="py-14 sm:py-24 bg-white border-t border-gray-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-14">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-14">
             <div>
-              <Badge variant="success" className="mb-3">
+              <Badge variant="success" className="mb-2 sm:mb-3 text-[11px] sm:text-xs">
                 Flagship Formulations
               </Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 tracking-tight">
                 Featured Clinical Products
               </h2>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">
                 Engineered with high bioavailability and maximum active purity.
               </p>
             </div>
@@ -226,15 +226,15 @@ export default function HomePage() {
             </Button>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {featuredProducts.map((product) => (
               <ProductCard3D key={product.id} product={product} />
             ))}
           </div>
 
-          <div className="mt-10 text-center md:hidden">
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/products">View Full Catalogue</Link>
+          <div className="mt-8 text-center md:hidden">
+            <Button asChild variant="outline" className="w-full text-xs font-bold py-2.5">
+              <Link href="/products">View All Formulations</Link>
             </Button>
           </div>
         </div>

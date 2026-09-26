@@ -167,50 +167,74 @@ export default function PharmaCapsule({ scrollProgress, mousePosition }: PharmaC
         <meshStandardMaterial
           color="#38BDF8"
           emissive="#0284C7"
-          emissiveIntensity={0.6}
-          roughness={0.2}
-          metalness={0.8}
+          emissiveIntensity={0.8}
+          roughness={0.15}
+          metalness={0.85}
         />
       </mesh>
 
       {/* Top Half - Precision Blue Optical Shell */}
       <group ref={topHalfRef} position={[0, 0.28, 0]}>
+        {/* Inner Bioactive Core Glow */}
+        <mesh position={[0, 0.32, 0]}>
+          <sphereGeometry args={[0.26, 24, 24]} />
+          <meshStandardMaterial
+            color="#60A5FA"
+            emissive="#2563EB"
+            emissiveIntensity={0.7}
+            roughness={0.25}
+            metalness={0.4}
+          />
+        </mesh>
+
         <mesh position={[0, 0.32, 0]}>
           <capsuleGeometry args={[0.39, 0.65, 16, 32]} />
           <meshPhysicalMaterial
             color="#2563EB"
             emissive="#1E40AF"
-            emissiveIntensity={0.15}
+            emissiveIntensity={0.25}
             roughness={0.1}
-            metalness={0.15}
+            metalness={0.2}
             clearcoat={1.0}
             clearcoatRoughness={0.1}
-            transmission={0.85}
-            thickness={0.5}
-            ior={1.48}
+            transmission={0.7}
+            thickness={0.6}
+            ior={1.45}
             transparent
-            opacity={0.92}
+            opacity={0.94}
           />
         </mesh>
       </group>
 
       {/* Bottom Half - Bioavailable Teal Optical Shell */}
       <group ref={bottomHalfRef} position={[0, -0.28, 0]}>
+        {/* Inner Bioactive Core Glow */}
+        <mesh position={[0, -0.32, 0]}>
+          <sphereGeometry args={[0.26, 24, 24]} />
+          <meshStandardMaterial
+            color="#2DD4BF"
+            emissive="#0D9488"
+            emissiveIntensity={0.7}
+            roughness={0.25}
+            metalness={0.4}
+          />
+        </mesh>
+
         <mesh position={[0, -0.32, 0]}>
           <capsuleGeometry args={[0.39, 0.65, 16, 32]} />
           <meshPhysicalMaterial
             color="#0D9488"
             emissive="#042F2E"
-            emissiveIntensity={0.15}
+            emissiveIntensity={0.25}
             roughness={0.1}
-            metalness={0.15}
+            metalness={0.2}
             clearcoat={1.0}
             clearcoatRoughness={0.1}
-            transmission={0.85}
-            thickness={0.5}
-            ior={1.48}
+            transmission={0.7}
+            thickness={0.6}
+            ior={1.45}
             transparent
-            opacity={0.92}
+            opacity={0.94}
           />
         </mesh>
       </group>

@@ -6,10 +6,10 @@ import CinematicCanvas from "@/components/3d/CinematicCanvas";
 import StoryOverlay from "./StoryOverlay";
 
 const ACTS = [
-  { id: 0, label: "Precision Structure", progress: 0.05 },
-  { id: 1, label: "Cellular Dispersion", progress: 0.38 },
-  { id: 2, label: "HPLC Batch QA", progress: 0.62 },
-  { id: 3, label: "D2C Ecosystem", progress: 0.88 },
+  { id: 0, label: "Precision Structure", shortLabel: "Structure", progress: 0.05 },
+  { id: 1, label: "Cellular Dispersion", shortLabel: "Dispersion", progress: 0.38 },
+  { id: 2, label: "HPLC Batch QA", shortLabel: "HPLC QA", progress: 0.62 },
+  { id: 3, label: "D2C Ecosystem", shortLabel: "Ecosystem", progress: 0.88 },
 ];
 
 export default function CinematicHeroScroll() {
@@ -144,8 +144,8 @@ export default function CinematicHeroScroll() {
       className="relative w-full"
       style={{ height: "300vh" }} // 3x viewport height for optimal scroll pacing
     >
-      {/* Pinned Sticky Viewport */}
-      <div className="sticky top-0 left-0 w-full h-screen overflow-hidden bg-slate-950">
+      {/* Pinned Sticky Viewport with Dynamic Mobile Viewport Support */}
+      <div className="sticky top-0 left-0 w-full h-[100dvh] overflow-hidden bg-slate-950">
         {/* Dynamic Theme Gradient Background */}
         <div
           className="absolute inset-0 transition-colors duration-700 pointer-events-none"
@@ -164,11 +164,11 @@ export default function CinematicHeroScroll() {
         <StoryOverlay scrollProgress={scrollProgress} />
 
         {/* Floating Storyline Navigator & Showcase Controls */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col sm:flex-row items-center gap-3 px-4 py-2 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl text-xs max-w-[95vw] overflow-x-auto scrollbar-none">
+        <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-slate-900/85 backdrop-blur-xl border border-white/15 rounded-full shadow-2xl text-xs max-w-[96vw] overflow-x-auto scrollbar-none">
           {/* Auto-Play Toggle */}
           <button
             onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-full font-bold transition-all shrink-0 text-[11px] sm:text-xs ${
               isAutoPlaying
                 ? "bg-teal-500 text-slate-950 shadow-md shadow-teal-500/30"
                 : "bg-white/10 text-white hover:bg-white/20"
@@ -177,32 +177,33 @@ export default function CinematicHeroScroll() {
           >
             {isAutoPlaying ? (
               <>
-                <Pause className="w-3.5 h-3.5" />
-                <span>Playing</span>
+                <Pause className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+                <span className="hidden xs:inline">Playing</span>
               </>
             ) : (
               <>
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Play Tour</span>
+                <Play className="w-3 sm:w-3.5 h-3 sm:h-3.5 fill-current" />
+                <span>3D Tour</span>
               </>
             )}
           </button>
 
-          <div className="hidden sm:block w-px h-4 bg-white/20" />
+          <div className="w-px h-3.5 bg-white/20 shrink-0" />
 
           {/* Act Progress Pills */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {ACTS.map((act) => (
               <button
                 key={act.id}
                 onClick={() => jumpToAct(act.progress)}
-                className={`px-3 py-1 rounded-full font-medium transition-all ${
+                className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold transition-all whitespace-nowrap ${
                   currentActIndex === act.id
                     ? "bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/40"
                     : "text-slate-300 hover:text-white hover:bg-white/5"
                 }`}
               >
-                {act.label}
+                <span className="hidden sm:inline">{act.label}</span>
+                <span className="sm:hidden">{act.shortLabel}</span>
               </button>
             ))}
           </div>
@@ -210,11 +211,11 @@ export default function CinematicHeroScroll() {
 
         {/* Initial Scroll Prompt (Act I Only) */}
         {scrollProgress < 0.12 && !isAutoPlaying && (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-blue-200/80 animate-bounce pointer-events-none">
-            <span className="text-[11px] font-semibold tracking-widest uppercase">
-              Scroll or Click Tour to Explore
+          <div className="absolute bottom-14 sm:bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-blue-200/80 animate-bounce pointer-events-none">
+            <span className="text-[10px] sm:text-[11px] font-semibold tracking-widest uppercase">
+              Scroll or Tap 3D Tour to Explore
             </span>
-            <ChevronDown className="w-4 h-4 text-blue-300" />
+            <ChevronDown className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-blue-300" />
           </div>
         )}
       </div>
