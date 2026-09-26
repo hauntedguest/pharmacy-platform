@@ -2,6 +2,11 @@
   "name": "pharmacy-platform",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://pharmacy-platform-ten.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hauntedguest/pharmacy-platform.git"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
