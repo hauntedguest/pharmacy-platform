@@ -48,6 +48,8 @@ export default function ProductCard3D({ product }: ProductCard3DProps) {
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
+  const isSoldOut = (product.stock ?? 0) <= 0 || product.inStock === false;
+
   return (
     <Link href={`/products/${product.slug}`} className="block perspective-1000 group">
       <div
@@ -59,7 +61,9 @@ export default function ProductCard3D({ product }: ProductCard3DProps) {
           transformStyle: "preserve-3d",
           transition: "transform 0.15s ease-out, box-shadow 0.2s ease-out",
         }}
-        className="relative h-full bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-2xl overflow-hidden transition-all duration-300"
+        className={`relative h-full bg-white rounded-2xl border ${
+          isSoldOut ? "border-rose-200/80 bg-slate-50/50" : "border-gray-100"
+        } shadow-sm hover:shadow-2xl overflow-hidden transition-all duration-300`}
       >
         {/* Dynamic Glare Effect */}
         <div
@@ -77,7 +81,11 @@ export default function ProductCard3D({ product }: ProductCard3DProps) {
 
           {/* Badges */}
           <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10">
-            {product.requiresPrescription ? (
+            {isSoldOut ? (
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-rose-600 text-white shadow-md shadow-rose-500/30 animate-pulse">
+                SOLD OUT
+              </span>
+            ) : product.requiresPrescription ? (
               <Badge variant="warning" className="text-[11px] font-semibold tracking-wide uppercase shadow-sm">
                 {product.prescriptionType || "Schedule H"}
               </Badge>
@@ -87,17 +95,34 @@ export default function ProductCard3D({ product }: ProductCard3DProps) {
               </Badge>
             )}
 
-            {discountPercent > 0 && (
-              <Badge variant="danger" className="text-[11px] font-bold shadow-sm">
-                {discountPercent}% OFF
-              </Badge>
+            {isSoldOut ? (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-200 text-gray-700">
+                Out of Stock
+              </span>
+            ) : (
+              discountPercent > 0 && (
+                <Badge variant="danger" className="text-[11px] font-bold shadow-sm">
+                  {discountPercent}% OFF
+                </Badge>
+              )
             )}
           </div>
+
+          {/* Sold Out Watermark Overlay if out of stock */}
+          {isSoldOut && (
+            <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[1px] z-20 flex items-center justify-center pointer-events-none">
+              <span className="px-4 py-1.5 rounded-xl bg-rose-600/95 text-white font-extrabold text-xs tracking-widest uppercase shadow-lg border border-rose-400">
+                Out of Stock
+              </span>
+            </div>
+          )}
 
           {/* 3D-Like Pharmaceutical Asset Placeholder */}
           <div
             style={{ transform: "translateZ(30px)" }}
-            className="relative z-10 w-28 h-28 rounded-2xl bg-white/80 backdrop-blur-md shadow-lg border border-white flex flex-col items-center justify-center p-4 transition-transform duration-300 group-hover:scale-105"
+            className={`relative z-10 w-28 h-28 rounded-2xl bg-white/80 backdrop-blur-md shadow-lg border border-white flex flex-col items-center justify-center p-4 transition-transform duration-300 group-hover:scale-105 ${
+              isSoldOut ? "grayscale opacity-75" : ""
+            }`}
           >
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white shadow-md mb-2">
               <Pill className="w-6 h-6" />
@@ -148,13 +173,24 @@ export default function ProductCard3D({ product }: ProductCard3DProps) {
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
-                <ShieldCheck className="w-3 h-3" />
-                {product.stock > 0 ? "In Stock • Express Delivery" : "Out of Stock"}
-              </p>
+              {isSoldOut ? (
+                <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
+                  Sold Out • 0 Units
+                </p>
+              ) : (
+                <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
+                  <ShieldCheck className="w-3 h-3" />
+                  In Stock ({product.stock} left)
+                </p>
+              )}
             </div>
 
-            <div className="w-9 h-9 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shadow-sm ${
+              isSoldOut
+                ? "bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white"
+                : "bg-gray-50 text-gray-700 group-hover:bg-blue-600 group-hover:text-white"
+            }`}>
               <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </div>
           </div>

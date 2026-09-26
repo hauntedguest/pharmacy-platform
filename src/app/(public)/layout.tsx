@@ -4,6 +4,7 @@ import Footer from "@/components/layout/Footer";
 import { brandConfig } from "@/lib/config/brand";
 import { CartProvider } from "@/context/CartContext";
 import CartDrawer from "@/components/cart/CartDrawer";
+import MediCareAIAssistant from "@/components/chat/MediCareAIAssistant";
 
 export const metadata: Metadata = {
   title: {
@@ -25,6 +26,7 @@ export default function PublicLayout({
       <main className="min-h-screen">{children}</main>
       <Footer />
       <CartDrawer />
+      <MediCareAIAssistant />
     </CartProvider>
   );
 }

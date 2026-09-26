@@ -32,6 +32,7 @@ export default function CartDrawer() {
     amountNeededForFreeShipping,
     freeShippingThreshold,
     hasPrescriptionItems,
+    hasOutOfStockItems,
   } = useCart();
 
   // Prevent background scroll when cart is open
@@ -151,84 +152,125 @@ export default function CartDrawer() {
                 </Button>
               </div>
             ) : (
-              items.map(({ product, quantity }) => (
-                <div
-                  key={product.id}
-                  className="p-3.5 rounded-2xl border border-gray-100 bg-white hover:border-gray-200 transition-colors flex gap-3.5 shadow-sm"
-                >
-                  {/* Icon / Image Placeholder */}
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/80 flex items-center justify-center shrink-0 text-blue-600 font-bold text-xs">
-                    {product.name.substring(0, 2).toUpperCase()}
-                  </div>
+              items.map(({ product, quantity }) => {
+                const isSoldOut = (product.stock ?? 0) <= 0 || product.inStock === false;
+                const isExceedingStock = !isSoldOut && quantity > product.stock;
 
-                  {/* Details */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="font-semibold text-gray-900 text-xs truncate leading-snug">
-                          {product.name}
-                        </h4>
-                        <p className="text-[11px] text-gray-500">
-                          {product.packSize}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(product.id)}
-                        className="text-gray-400 hover:text-rose-500 p-1 rounded-lg transition-colors"
-                        title="Remove item"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                return (
+                  <div
+                    key={product.id}
+                    className={`p-3.5 rounded-2xl border transition-colors flex gap-3.5 shadow-sm ${
+                      isSoldOut
+                        ? "border-rose-200 bg-rose-50/40"
+                        : "border-gray-100 bg-white hover:border-gray-200"
+                    }`}
+                  >
+                    {/* Icon / Image Placeholder */}
+                    <div
+                      className={`w-16 h-16 rounded-xl border flex items-center justify-center shrink-0 font-bold text-xs ${
+                        isSoldOut
+                          ? "bg-rose-100/70 border-rose-200 text-rose-600"
+                          : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100/80 text-blue-600"
+                      }`}
+                    >
+                      {product.name.substring(0, 2).toUpperCase()}
                     </div>
 
-                    {product.requiresPrescription && (
-                      <span className="inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
-                        Schedule H Rx
-                      </span>
-                    )}
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className="font-semibold text-gray-900 text-xs truncate leading-snug">
+                            {product.name}
+                          </h4>
+                          <p className="text-[11px] text-gray-500">
+                            {product.packSize}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(product.id)}
+                          className="text-gray-400 hover:text-rose-500 p-1 rounded-lg transition-colors"
+                          title="Remove item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
 
-                    {/* Price and Quantity Controls */}
-                    <div className="flex items-center justify-between mt-2.5">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="font-bold text-gray-900 text-sm">
-                          {formatINR(product.price * quantity)}
-                        </span>
-                        {product.originalPrice && (
-                          <span className="text-[10px] text-gray-400 line-through">
-                            {formatINR(product.originalPrice * quantity)}
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {isSoldOut ? (
+                          <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-rose-600 text-white shadow-xs animate-pulse">
+                            Sold Out
+                          </span>
+                        ) : isExceedingStock ? (
+                          <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                            Only {product.stock} available
+                          </span>
+                        ) : null}
+
+                        {product.requiresPrescription && (
+                          <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                            Schedule H Rx
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-                        <button
-                          onClick={() => updateQuantity(product.id, quantity - 1)}
-                          className="px-2 py-1 text-gray-600 hover:bg-gray-200 transition-colors"
-                          aria-label="Decrease quantity"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="px-2.5 py-0.5 text-xs font-semibold text-gray-800 min-w-[24px] text-center">
-                          {quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(product.id, quantity + 1)}
-                          className="px-2 py-1 text-gray-600 hover:bg-gray-200 transition-colors"
-                          aria-label="Increase quantity"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
+                      {/* Price and Quantity Controls */}
+                      <div className="flex items-center justify-between mt-2.5">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="font-bold text-gray-900 text-sm">
+                            {formatINR(product.price * quantity)}
+                          </span>
+                          {product.originalPrice && (
+                            <span className="text-[10px] text-gray-400 line-through">
+                              {formatINR(product.originalPrice * quantity)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                          <button
+                            onClick={() => updateQuantity(product.id, quantity - 1)}
+                            className="px-2 py-1 text-gray-600 hover:bg-gray-200 transition-colors"
+                            aria-label="Decrease quantity"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="px-2.5 py-0.5 text-xs font-semibold text-gray-800 min-w-[24px] text-center">
+                            {quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(product.id, quantity + 1)}
+                            disabled={isSoldOut || quantity >= product.stock}
+                            className={`px-2 py-1 transition-colors ${
+                              isSoldOut || quantity >= product.stock
+                                ? "text-gray-300 cursor-not-allowed bg-gray-100"
+                                : "text-gray-600 hover:bg-gray-200"
+                            }`}
+                            aria-label="Increase quantity"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
           {/* Footer Summary */}
           {items.length > 0 && (
             <div className="p-6 border-t border-gray-100 bg-gray-50/70 space-y-3">
+              {hasOutOfStockItems && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span className="leading-tight text-[11px]">
+                    Some items are currently sold out or exceed available stock. Please remove or adjust them before checkout.
+                  </span>
+                </div>
+              )}
+
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-gray-600">
                   <span>Total MRP</span>
@@ -266,17 +308,28 @@ export default function CartDrawer() {
                 >
                   <Link href="/cart">View Cart</Link>
                 </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  asChild
-                  onClick={closeCart}
-                  className="w-full text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/25 flex items-center justify-center gap-1"
-                >
-                  <Link href="/checkout">
-                    Checkout <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </Button>
+                {hasOutOfStockItems ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled
+                    className="w-full text-xs font-bold bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed flex items-center justify-center gap-1"
+                  >
+                    Items Sold Out
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    asChild
+                    onClick={closeCart}
+                    className="w-full text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/25 flex items-center justify-center gap-1"
+                  >
+                    <Link href="/checkout">
+                      Checkout <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </Button>
+                )}
               </div>
             </div>
           )}

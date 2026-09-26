@@ -37,6 +37,7 @@ function ProductsContent() {
   const initialSearch = searchParams.get("q") || "";
 
   // State hooks
+  const [products, setProducts] = useState<Product[]>(mockProducts);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>(initialCategory);
   const [selectedDosageForms, setSelectedDosageForms] = useState<string[]>([]);
@@ -49,6 +50,24 @@ function ProductsContent() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
 
+  // Fetch live products inventory from database
+  useEffect(() => {
+    async function fetchLiveProducts() {
+      try {
+        const res = await fetch("/api/products");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data)) {
+            setProducts(json.data);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch live inventory:", err);
+      }
+    }
+    fetchLiveProducts();
+  }, []);
+
   // Sync category param from URL
   useEffect(() => {
     const cat = searchParams.get("category") as CategoryFilter;
@@ -57,44 +76,56 @@ function ProductsContent() {
 
   // Derived unique lists for filters
   const allBrands = useMemo(() => {
-    const brands = Array.from(new Set(mockProducts.map((p) => p.brand)));
+    const brands = Array.from(
+      new Set(
+        products
+          .map((p) => p.brand)
+          .filter((b): b is string => Boolean(b && typeof b === "string" && b.trim().length > 0))
+      )
+    );
     return brands.sort();
-  }, []);
+  }, [products]);
 
   const allDosageForms = useMemo(() => {
-    const forms = Array.from(new Set(mockProducts.map((p) => p.dosageForm)));
+    const forms = Array.from(
+      new Set(
+        products
+          .map((p) => p.dosageForm)
+          .filter((f): f is Product["dosageForm"] => Boolean(f && typeof f === "string" && f.trim().length > 0))
+      )
+    );
     return forms.sort();
-  }, []);
+  }, [products]);
 
   // Category Tabs Configuration
-  const categoryTabs: { label: string; value: CategoryFilter; count: number }[] = [
-    { label: "All Formulations", value: "all", count: mockProducts.length },
+  const categoryTabs: { label: string; value: CategoryFilter; count: number }[] = useMemo(() => [
+    { label: "All Formulations", value: "all", count: products.length },
     {
       label: "Prescription (Rx)",
       value: "prescription",
-      count: mockProducts.filter((p) => p.category === "prescription").length,
+      count: products.filter((p) => p.category === "prescription").length,
     },
     {
       label: "Supplements",
       value: "supplement",
-      count: mockProducts.filter((p) => p.category === "supplement").length,
+      count: products.filter((p) => p.category === "supplement").length,
     },
     {
       label: "Medical Devices",
       value: "medical-device",
-      count: mockProducts.filter((p) => p.category === "medical-device").length,
+      count: products.filter((p) => p.category === "medical-device").length,
     },
     {
       label: "Ayurvedic & Herbal",
       value: "ayurvedic",
-      count: mockProducts.filter((p) => p.category === "ayurvedic").length,
+      count: products.filter((p) => p.category === "ayurvedic").length,
     },
     {
       label: "OTC Care",
       value: "otc",
-      count: mockProducts.filter((p) => p.category === "otc").length,
+      count: products.filter((p) => p.category === "otc").length,
     },
-  ];
+  ], [products]);
 
   // Toggle Handlers
   const toggleDosageForm = (form: string) => {
@@ -123,7 +154,7 @@ function ProductsContent() {
 
   // Filter calculation
   const filteredProducts = useMemo(() => {
-    return mockProducts.filter((product) => {
+    return products.filter((product) => {
       // Search match
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -181,6 +212,7 @@ function ProductsContent() {
       return true;
     });
   }, [
+    products,
     searchQuery,
     selectedCategory,
     prescriptionFilter,
@@ -397,18 +429,18 @@ function ProductsContent() {
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setPrescriptionFilter("all")} />
               </span>
             )}
-            {selectedDosageForms.map((form) => (
+            {selectedDosageForms.map((form, idx) => (
               <span
-                key={form}
+                key={`active-df-${form}-${idx}`}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 border border-teal-200 text-xs font-medium"
               >
                 {form}
                 <X className="w-3 h-3 cursor-pointer" onClick={() => toggleDosageForm(form)} />
               </span>
             ))}
-            {selectedBrands.map((brand) => (
+            {selectedBrands.map((brand, idx) => (
               <span
-                key={brand}
+                key={`active-brand-${brand}-${idx}`}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-medium"
               >
                 {brand}
@@ -475,7 +507,7 @@ function ProductsContent() {
                     { id: "otc-only", label: "OTC (No Rx Required)" },
                   ].map((option) => (
                     <label
-                      key={option.id}
+                      key={`desktop-rx-${option.id}`}
                       className="flex items-center gap-2.5 text-xs text-gray-700 cursor-pointer hover:text-gray-900"
                     >
                       <input
@@ -522,11 +554,11 @@ function ProductsContent() {
                   Dosage Form
                 </label>
                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {allDosageForms.map((form) => {
+                  {allDosageForms.map((form, idx) => {
                     const isChecked = selectedDosageForms.includes(form);
                     return (
                       <label
-                        key={form}
+                        key={`desktop-dosage-${form}-${idx}`}
                         className="flex items-center justify-between text-xs text-gray-700 cursor-pointer hover:text-gray-900"
                       >
                         <span className="flex items-center gap-2">
@@ -539,7 +571,7 @@ function ProductsContent() {
                           <span>{form}</span>
                         </span>
                         <span className="text-[10px] text-gray-400">
-                          {mockProducts.filter((p) => p.dosageForm === form).length}
+                          {products.filter((p) => p.dosageForm === form).length}
                         </span>
                       </label>
                     );
@@ -553,11 +585,11 @@ function ProductsContent() {
                   Pharmaceutical Brand
                 </label>
                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {allBrands.map((brand) => {
+                  {allBrands.map((brand, idx) => {
                     const isChecked = selectedBrands.includes(brand);
                     return (
                       <label
-                        key={brand}
+                        key={`desktop-brand-${brand}-${idx}`}
                         className="flex items-center justify-between text-xs text-gray-700 cursor-pointer hover:text-gray-900"
                       >
                         <span className="flex items-center gap-2 truncate pr-2">
@@ -570,7 +602,7 @@ function ProductsContent() {
                           <span className="truncate">{brand}</span>
                         </span>
                         <span className="text-[10px] text-gray-400 shrink-0">
-                          {mockProducts.filter((p) => p.brand === brand).length}
+                          {products.filter((p) => p.brand === brand).length}
                         </span>
                       </label>
                     );
@@ -627,7 +659,7 @@ function ProductsContent() {
             <div className="flex items-center justify-between mb-6">
               <p className="text-xs text-gray-500 font-medium">
                 Showing <strong className="text-gray-900">{sortedProducts.length}</strong> of{" "}
-                {mockProducts.length} clinical formulations
+                {products.length} clinical formulations
               </p>
               <div className="flex items-center gap-2 text-xs text-emerald-700 font-medium">
                 <Truck className="w-3.5 h-3.5" />
@@ -788,7 +820,7 @@ function ProductsContent() {
                     { id: "otc-only", label: "OTC (No Rx Required)" },
                   ].map((option) => (
                     <label
-                      key={option.id}
+                      key={`mobile-rx-${option.id}`}
                       className="flex items-center gap-2.5 text-xs text-gray-700 cursor-pointer"
                     >
                       <input
@@ -831,9 +863,9 @@ function ProductsContent() {
                   Dosage Form
                 </label>
                 <div className="space-y-2">
-                  {allDosageForms.map((form) => (
+                  {allDosageForms.map((form, idx) => (
                     <label
-                      key={form}
+                      key={`mobile-dosage-${form}-${idx}`}
                       className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer"
                     >
                       <input
@@ -854,9 +886,9 @@ function ProductsContent() {
                   Brand
                 </label>
                 <div className="space-y-2">
-                  {allBrands.map((brand) => (
+                  {allBrands.map((brand, idx) => (
                     <label
-                      key={brand}
+                      key={`mobile-brand-${brand}-${idx}`}
                       className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer"
                     >
                       <input

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -23,7 +23,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import ProductCard3D from "@/components/products/ProductCard3D";
-import { getFeaturedProducts } from "@/lib/data/products";
+import { getFeaturedProducts, type Product } from "@/lib/data/products";
 import { brandConfig } from "@/lib/config/brand";
 
 const CinematicHeroScroll = dynamic(
@@ -32,8 +32,30 @@ const CinematicHeroScroll = dynamic(
 );
 
 export default function HomePage() {
-  const featuredProducts = getFeaturedProducts();
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>(getFeaturedProducts());
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  useEffect(() => {
+    async function fetchLiveProducts() {
+      try {
+        const res = await fetch("/api/products");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data)) {
+            const liveFeatured = (json.data as Product[]).filter((p) => p.featured);
+            if (liveFeatured.length > 0) {
+              setFeaturedProducts(liveFeatured);
+            } else if (json.data.length > 0) {
+              setFeaturedProducts((json.data as Product[]).slice(0, 4));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch live featured products:", err);
+      }
+    }
+    fetchLiveProducts();
+  }, []);
 
   const categories = [
     {

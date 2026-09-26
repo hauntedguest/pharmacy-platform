@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import Link from "next/link";
 import {
   ThermometerSnowflake,
@@ -26,6 +26,7 @@ import {
 import Button from "@/components/ui/Button";
 import { brandConfig } from "@/lib/config/brand";
 import { formatINR } from "@/lib/data/products";
+import type { OrderRecord } from "@/lib/db/types";
 
 interface TempLog {
   time: string;
@@ -48,10 +49,10 @@ export default function OrderTrackPage({ params }: { params: Promise<{ id: strin
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copiedOtp, setCopiedOtp] = useState(false);
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
-  const [orderData, setOrderData] = useState<any>(null);
+  const [orderData, setOrderData] = useState<OrderRecord | null>(null);
   const [tempLogs, setTempLogs] = useState<TempLog[]>(defaultTempLogs);
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       const res = await fetch(`/api/orders/${orderId}`);
       if (res.ok) {
@@ -66,10 +67,29 @@ export default function OrderTrackPage({ params }: { params: Promise<{ id: strin
     } catch (err) {
       console.warn("Failed to fetch order details from API, using fallback data", err);
     }
-  };
+  }, [orderId]);
 
   useEffect(() => {
-    fetchOrder();
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/orders/${orderId}`);
+        if (res.ok && isMounted) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            setOrderData(json.data);
+            if (json.data.telemetry && json.data.telemetry.length > 0) {
+              setTempLogs(json.data.telemetry);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch order details from API, using fallback data", err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
   }, [orderId]);
 
   const deliveryOtp = orderData?.deliveryOtp || "6849";

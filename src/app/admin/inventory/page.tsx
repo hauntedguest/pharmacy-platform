@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Boxes,
   Thermometer,
@@ -102,6 +102,138 @@ export default function AdminInventoryPage() {
   const [search, setSearch] = useState("");
   const [filterZone, setFilterZone] = useState<string>("all");
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Form State
+  const [formBatchId, setFormBatchId] = useState("");
+  const [formDrugName, setFormDrugName] = useState("");
+  const [formQuantity, setFormQuantity] = useState("250");
+  const [formZone, setFormZone] = useState("Cold Storage (2°C-8°C)");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const handleSaveConsignment = async () => {
+    setFormError(null);
+    if (!formBatchId.trim()) {
+      setFormError("Batch ID is required (e.g. BAT-MCP-2026-901).");
+      return;
+    }
+    if (!formDrugName.trim()) {
+      setFormError("Pharmaceutical formulation name is required.");
+      return;
+    }
+    const qty = parseInt(formQuantity, 10);
+    if (isNaN(qty) || qty <= 0) {
+      setFormError("Please enter a valid positive quantity.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/batches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchId: formBatchId.trim(),
+          productName: formDrugName.trim(),
+          totalStockUnits: qty,
+          storageVaultZone: formZone,
+          manufacturer: "MediCare Plus Cleanroom Labs",
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to log batch consignment");
+      }
+
+      setSuccessMsg(`Batch ${formBatchId.trim()} successfully registered in CDSCO ledger.`);
+      setIsRestockModalOpen(false);
+      setFormBatchId("");
+      setFormDrugName("");
+      setFormQuantity("250");
+      await fetchBatches();
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch (err: any) {
+      setFormError(err.message || "Failed to save consignment");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const fetchBatches = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/batches");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped: BatchItem[] = json.data.map((b: any) => ({
+            batchId: b.batchId,
+            drugName: b.productName,
+            manufacturer: b.manufacturer,
+            category: b.storageVaultZone?.includes("Cold") ? "Cold-Chain Formulation" : "General Therapeutics",
+            zone: b.storageVaultZone?.includes("Cold")
+              ? "Cold Storage (2°C-8°C)"
+              : "Controlled Ambient (15°C-25°C)",
+            currentTemp: b.currentVaultTemp || (b.storageVaultZone?.includes("Cold") ? "3.8°C" : "21.2°C"),
+            stockUnits: Number(b.totalStockUnits) || 100,
+            reorderLevel: Number(b.reorderLevel) || 50,
+            mfgDate: b.mfgDate || "2026-01-01",
+            expiryDate: b.expiryDate || "2028-01-01",
+            status: Number(b.totalStockUnits) <= Number(b.reorderLevel) ? "Low Stock" : "Optimal",
+          }));
+          setBatches(mapped);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch live batches", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBatches();
+  }, []);
+
+  const handleCreateBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formBatchId.trim() || !formDrugName.trim()) {
+      alert("Please enter both Batch ID and Formulation Name.");
+      return;
+    }
+
+    const isCold = formZone.includes("Cold");
+    try {
+      const res = await fetch("/api/batches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchId: formBatchId.trim(),
+          productName: formDrugName.trim(),
+          quantity: Number(formQuantity) || 250,
+          storageVaultZone: formZone,
+          currentVaultTemp: isCold ? "3.8°C" : "21.2°C",
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          setSuccessMsg(`✓ Consignment ${formBatchId} successfully logged into CDSCO storage ledger.`);
+          setTimeout(() => setSuccessMsg(null), 5000);
+          setIsRestockModalOpen(false);
+          setFormBatchId("");
+          setFormDrugName("");
+          fetchBatches();
+        }
+      }
+    } catch (err) {
+      console.error("Failed to save consignment", err);
+    }
+  };
 
   const filteredBatches = batches.filter((b) => {
     const matchSearch =
@@ -299,21 +431,31 @@ export default function AdminInventoryPage() {
               </button>
             </div>
 
+            {formError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400 font-medium">
+                {formError}
+              </div>
+            )}
+
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block text-slate-400 mb-1">Batch ID / Consignment No. *</label>
                 <input
                   type="text"
-                  placeholder="e.g. BAT-CIP-2026-901"
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono"
+                  value={formBatchId}
+                  onChange={(e) => setFormBatchId(e.target.value)}
+                  placeholder="e.g. BAT-MCP-2026-901"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono focus:outline-none focus:border-blue-500"
                 />
               </div>
               <div>
                 <label className="block text-slate-400 mb-1">Pharmaceutical Formulation *</label>
                 <input
                   type="text"
-                  placeholder="e.g. Telma 40mg (Glenmark)"
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white"
+                  value={formDrugName}
+                  onChange={(e) => setFormDrugName(e.target.value)}
+                  placeholder="e.g. MediCare Plus CardioGuard Telmisartan 40mg"
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -321,15 +463,22 @@ export default function AdminInventoryPage() {
                   <label className="block text-slate-400 mb-1">Quantity (Units) *</label>
                   <input
                     type="number"
+                    value={formQuantity}
+                    onChange={(e) => setFormQuantity(e.target.value)}
                     placeholder="250"
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white"
+                    min="1"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
                   <label className="block text-slate-400 mb-1">Storage Vault Zone *</label>
-                  <select className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white cursor-pointer">
-                    <option>Cold Storage (2°C-8°C)</option>
-                    <option>Controlled Ambient (15°C-25°C)</option>
+                  <select
+                    value={formZone}
+                    onChange={(e) => setFormZone(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white cursor-pointer focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="Cold Storage (2°C-8°C)">Cold Storage (2°C-8°C)</option>
+                    <option value="Controlled Ambient (15°C-25°C)">Controlled Ambient (15°C-25°C)</option>
                   </select>
                 </div>
               </div>
@@ -339,18 +488,23 @@ export default function AdminInventoryPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsRestockModalOpen(false)}
+                onClick={() => {
+                  setIsRestockModalOpen(false);
+                  setFormError(null);
+                }}
                 className="border-slate-800 text-slate-300"
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => setIsRestockModalOpen(false)}
+                onClick={handleSaveConsignment}
                 className="bg-blue-600 hover:bg-blue-500 font-bold"
+                disabled={isSubmitting}
               >
-                Save Consignment
+                {isSubmitting ? "Saving..." : "Save Consignment"}
               </Button>
             </div>
           </div>

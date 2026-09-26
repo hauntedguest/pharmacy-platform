@@ -15,6 +15,7 @@ export interface Product {
   originalPrice?: number; // MRP in INR (₹)
   packSize: string; // e.g. "Strip of 10 Tablets", "Bottle of 60 Capsules"
   stock: number;
+  inStock?: boolean;
   requiresPrescription: boolean; // True for Schedule H / H1 / X drugs
   prescriptionType?: "Schedule H" | "Schedule H1" | "OTC" | "Ayurvedic";
   images: string[];
@@ -33,6 +34,7 @@ export interface Product {
   rating: number;
   reviewCount: number;
   discountPercent?: number;
+  isVisible?: boolean;
 }
 
 export const mockProducts: Product[] = [

@@ -45,7 +45,14 @@ export default function AdminDashboardPage() {
     fetchDashboardData();
   }, []);
 
-  const totalGross = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const totalGross = orders.reduce((sum, o) => {
+    const calculatedSum = (o.items || []).reduce(
+      (s: number, it: any) => s + (Number(it.unitPrice) || 0) * (Number(it.quantity) || 1),
+      0
+    );
+    const amt = Number(o.totalAmount) > 0 ? Number(o.totalAmount) : calculatedSum;
+    return sum + amt;
+  }, 0);
   const pendingRxCount = prescriptions.filter((r) => r.status === "pending").length;
 
   const stats = [
@@ -120,20 +127,27 @@ export default function AdminDashboardPage() {
 
   const displayedOrders =
     orders.length > 0
-      ? orders.slice(0, 5).map((o) => ({
-          orderId: o.id,
-          customer: o.customerName,
-          location: `${o.shippingCity} (${o.shippingPincode})`,
-          items: o.items?.map((it: any) => `${it.productName} x${it.quantity}`).join(", ") || "Formulations",
-          amount: o.totalAmount,
-          status: o.status,
-          statusColor:
-            o.status === "Delivered"
-              ? "text-slate-400 bg-slate-500/10 border-slate-500/30"
-              : o.status === "Dispatched" || o.status === "Out for Delivery"
-              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-              : "text-blue-400 bg-blue-500/10 border-blue-500/30",
-        }))
+      ? orders.slice(0, 5).map((o) => {
+          const calculatedSum = (o.items || []).reduce(
+            (s: number, it: any) => s + (Number(it.unitPrice) || 0) * (Number(it.quantity) || 1),
+            0
+          );
+          const amt = Number(o.totalAmount) > 0 ? Number(o.totalAmount) : calculatedSum;
+          return {
+            orderId: o.id,
+            customer: o.customerName || "Customer",
+            location: `${o.shippingCity || "India"} (${o.shippingPincode || ""})`,
+            items: o.items?.map((it: any) => `${it.productName} x${it.quantity}`).join(", ") || "Formulations",
+            amount: amt,
+            status: o.status || "Verified",
+            statusColor:
+              o.status === "Delivered"
+                ? "text-slate-400 bg-slate-500/10 border-slate-500/30"
+                : o.status === "Dispatched" || o.status === "Out for Delivery"
+                ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+                : "text-blue-400 bg-blue-500/10 border-blue-500/30",
+          };
+        })
       : [
           {
             orderId: "ORD-98401",

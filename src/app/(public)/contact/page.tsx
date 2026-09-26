@@ -14,9 +14,11 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { brandConfig } from "@/lib/config/brand";
+import { isValidIndianPhone, isValidEmail } from "@/lib/validation/validators";
 
 export default function ContactPage() {
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -27,6 +29,24 @@ export default function ContactPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: Record<string, string> = {};
+
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      errors.name = "Please enter your name (at least 2 characters).";
+    }
+    if (!isValidIndianPhone(formData.phone)) {
+      errors.phone = "Please enter a valid 10-digit Indian mobile number.";
+    }
+    if (!isValidEmail(formData.email)) {
+      errors.email = "Please enter a valid email address.";
+    }
+    if (!formData.message.trim() || formData.message.trim().length < 5) {
+      errors.message = "Please enter a message (at least 5 characters).";
+    }
+
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setFormSubmitted(true);
     setTimeout(() => {
       setFormSubmitted(false);
@@ -37,6 +57,7 @@ export default function ContactPage() {
         subject: "Prescription Query",
         message: "",
       });
+      setFormErrors({});
     }, 4000);
   };
 
@@ -156,10 +177,18 @@ export default function ContactPage() {
                         type="text"
                         required
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, name: e.target.value });
+                          if (formErrors.name) setFormErrors((prev) => ({ ...prev, name: "" }));
+                        }}
                         placeholder="e.g. Vikram Malhotra"
-                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none ${
+                          formErrors.name ? "border-rose-400" : "border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        }`}
                       />
+                      {formErrors.name && (
+                        <p className="text-[11px] text-rose-600 font-medium mt-1">{formErrors.name}</p>
+                      )}
                     </div>
 
                     <div>
@@ -168,10 +197,18 @@ export default function ContactPage() {
                         type="tel"
                         required
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, phone: e.target.value });
+                          if (formErrors.phone) setFormErrors((prev) => ({ ...prev, phone: "" }));
+                        }}
                         placeholder="+91 98201 XXXXX"
-                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none ${
+                          formErrors.phone ? "border-rose-400" : "border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        }`}
                       />
+                      {formErrors.phone && (
+                        <p className="text-[11px] text-rose-600 font-medium mt-1">{formErrors.phone}</p>
+                      )}
                     </div>
                   </div>
 
@@ -181,10 +218,18 @@ export default function ContactPage() {
                       type="email"
                       required
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, email: e.target.value });
+                        if (formErrors.email) setFormErrors((prev) => ({ ...prev, email: "" }));
+                      }}
                       placeholder="name@example.com"
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none ${
+                        formErrors.email ? "border-rose-400" : "border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {formErrors.email && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{formErrors.email}</p>
+                    )}
                   </div>
 
                   <div>
@@ -208,10 +253,18 @@ export default function ContactPage() {
                       rows={4}
                       required
                       value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, message: e.target.value });
+                        if (formErrors.message) setFormErrors((prev) => ({ ...prev, message: "" }));
+                      }}
                       placeholder="Please mention your medicine requirements, doctor's prescription ID, or specific inquiry..."
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none ${
+                        formErrors.message ? "border-rose-400" : "border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {formErrors.message && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{formErrors.message}</p>
+                    )}
                   </div>
 
                   <div className="pt-2">

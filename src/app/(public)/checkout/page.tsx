@@ -27,6 +27,16 @@ import { formatINR } from "@/lib/data/products";
 import Button from "@/components/ui/Button";
 import { brandConfig } from "@/lib/config/brand";
 import { lookupPincode, PincodeDetails } from "@/lib/services/pincode";
+import {
+  isValidIndianPhone,
+  isValidEmail,
+  isValidIndianPincode,
+  isValidDoctorRegNumber,
+  isValidUpiId,
+  isValidCardNumber,
+  isValidCardExpiry,
+  isValidCardCvv,
+} from "@/lib/validation/validators";
 
 const INDIAN_STATES = [
   "Maharashtra",
@@ -66,6 +76,7 @@ export default function CheckoutPage() {
     prescriptionAttached,
     attachPrescription,
     clearCart,
+    hasOutOfStockItems,
   } = useCart();
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -116,6 +127,11 @@ export default function CheckoutPage() {
       setPinStatusMsg(null);
     }
   };
+  const [addressErrors, setAddressErrors] = useState<Record<string, string>>({});
+  const [rxErrors, setRxErrors] = useState<Record<string, string>>({});
+  const [paymentErrors, setPaymentErrors] = useState<Record<string, string>>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+
   const [rxOption, setRxOption] = useState<"upload" | "doctor-call" | "have-on-file">("upload");
   const [rxFileName, setRxFileName] = useState(prescriptionAttached?.fileName || "");
   const [doctorDetails, setDoctorDetails] = useState({
@@ -132,12 +148,41 @@ export default function CheckoutPage() {
   // Step 4: Payment Method
   const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "netbanking" | "cod">("upi");
   const [upiId, setUpiId] = useState("sunita@okhdfcbank");
+  const [cardDetails, setCardDetails] = useState({
+    number: "4532 8812 3901 8819",
+    expiry: "12/28",
+    cvv: "889",
+  });
   const [selectedBank, setSelectedBank] = useState("HDFC Bank");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Handle Form Progress
   const handleAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: Record<string, string> = {};
+
+    if (!address.fullName.trim() || address.fullName.trim().length < 2) {
+      errors.fullName = "Please enter patient's full name (at least 2 characters).";
+    }
+    if (!isValidIndianPhone(address.phone)) {
+      errors.phone = "Please enter a valid 10-digit Indian mobile number (e.g. 9820154321).";
+    }
+    if (!isValidEmail(address.email)) {
+      errors.email = "Please enter a valid email address for your GST invoice.";
+    }
+    if (!address.addressLine1.trim()) {
+      errors.addressLine1 = "Flat / House number and building name are required.";
+    }
+    if (!isValidIndianPincode(address.pinCode)) {
+      errors.pinCode = "Please enter a valid 6-digit Indian PIN code (cannot start with 0).";
+    }
+    if (!address.city.trim()) {
+      errors.city = "City / District is required.";
+    }
+
+    setAddressErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     if (hasPrescriptionItems && !prescriptionAttached && !rxFileName) {
       setCurrentStep(2);
     } else {
@@ -147,6 +192,27 @@ export default function CheckoutPage() {
 
   const handleRxSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: Record<string, string> = {};
+
+    if (rxOption === "upload") {
+      if (!rxFileName && !prescriptionAttached) {
+        errors.rxFile = "Please select and upload a valid doctor prescription file.";
+      }
+    } else if (rxOption === "doctor-call") {
+      if (!doctorDetails.doctorName.trim()) {
+        errors.doctorName = "Doctor / RMP name is required.";
+      }
+      if (!isValidDoctorRegNumber(doctorDetails.regNumber)) {
+        errors.regNumber = "Valid Medical Council registration number required (e.g. MMC-2004-49102).";
+      }
+      if (!doctorDetails.clinic.trim()) {
+        errors.clinic = "Clinic / Hospital name is required.";
+      }
+    }
+
+    setRxErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     if (rxFileName && !prescriptionAttached) {
       attachPrescription(rxFileName);
     }
@@ -158,6 +224,33 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
+    const errors: Record<string, string> = {};
+
+    if (paymentMethod === "upi") {
+      if (!isValidUpiId(upiId)) {
+        errors.upiId = "Please enter a valid UPI ID (e.g. user@okhdfcbank or 9876543210@paytm).";
+      }
+    } else if (paymentMethod === "card") {
+      if (!isValidCardNumber(cardDetails.number)) {
+        errors.cardNumber = "Please enter a valid 16-digit card number.";
+      }
+      if (!isValidCardExpiry(cardDetails.expiry)) {
+        errors.cardExpiry = "Please enter a valid future expiry date in MM/YY format.";
+      }
+      if (!isValidCardCvv(cardDetails.cvv)) {
+        errors.cardCvv = "Please enter a valid 3 or 4 digit CVV.";
+      }
+    }
+
+    setPaymentErrors(errors);
+    setServerError(null);
+    if (Object.keys(errors).length > 0) return;
+
+    if (hasOutOfStockItems) {
+      setServerError("Some items in your cart are currently sold out or unavailable. Please return to your cart and remove out-of-stock items.");
+      return;
+    }
+
     setIsProcessing(true);
     try {
       const orderPayload = {
@@ -171,18 +264,19 @@ export default function CheckoutPage() {
         items: items.map(({ product, quantity }) => ({
           productId: product.id,
           productName: product.name,
-          quantity: quantity,
-          unitPrice: product.price,
+          quantity: Number(quantity) || 1,
+          unitPrice: Number(product.price) || 0,
         })),
+        totalAmount: grandTotal,
         paymentMethod:
           paymentMethod === "upi"
-            ? `UPI (${upiId})`
+            ? `UPI (${upiId || "user@upi"})`
             : paymentMethod === "card"
             ? "Credit / Debit Card (RuPay)"
             : paymentMethod === "netbanking"
-            ? `Net Banking (${selectedBank})`
+            ? `Net Banking (${selectedBank || "HDFC Bank"})`
             : "Cash on Delivery",
-        prescriptionId: prescriptionAttached?.id,
+        prescriptionId: prescriptionAttached?.fileName,
       };
 
       const res = await fetch("/api/orders", {
@@ -192,19 +286,24 @@ export default function CheckoutPage() {
       });
 
       const data = await res.json();
-      if (data.success && data.data?.id) {
+      if (res.ok && data.success && data.data?.id) {
+        const orderId = data.data.id;
+        const total = data.data.totalAmount ?? grandTotal;
         clearCart();
-        router.push(`/checkout/success?orderId=${data.data.id}&total=${grandTotal}`);
+        router.push(`/checkout/success?orderId=${orderId}&total=${total}`);
       } else {
-        const fallbackOrderId = `ORD-IND-${Math.floor(10000 + Math.random() * 90000)}`;
-        clearCart();
-        router.push(`/checkout/success?orderId=${fallbackOrderId}&total=${grandTotal}`);
+        setServerError(
+          data.error ||
+          "Order creation failed. Please check available stock levels or address details."
+        );
       }
     } catch (err) {
       console.error("Order submission error:", err);
-      const fallbackOrderId = `ORD-IND-${Math.floor(10000 + Math.random() * 90000)}`;
-      clearCart();
-      router.push(`/checkout/success?orderId=${fallbackOrderId}&total=${grandTotal}`);
+      setServerError(
+        err instanceof Error
+          ? err.message
+          : "Unable to connect to order processing gateway. Please check your network and try again."
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -315,9 +414,19 @@ export default function CheckoutPage() {
                       type="text"
                       required
                       value={address.fullName}
-                      onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                      onChange={(e) => {
+                        setAddress({ ...address, fullName: e.target.value });
+                        if (addressErrors.fullName) setAddressErrors((prev) => ({ ...prev, fullName: "" }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 font-medium ${
+                        addressErrors.fullName
+                          ? "border-rose-500 focus:ring-rose-500/20 focus:border-rose-500"
+                          : "border-gray-200 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {addressErrors.fullName && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{addressErrors.fullName}</p>
+                    )}
                   </div>
 
                   <div>
@@ -328,9 +437,19 @@ export default function CheckoutPage() {
                       type="tel"
                       required
                       value={address.phone}
-                      onChange={(e) => setAddress({ ...address, phone: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                      onChange={(e) => {
+                        setAddress({ ...address, phone: e.target.value });
+                        if (addressErrors.phone) setAddressErrors((prev) => ({ ...prev, phone: "" }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 font-medium ${
+                        addressErrors.phone
+                          ? "border-rose-500 focus:ring-rose-500/20 focus:border-rose-500"
+                          : "border-gray-200 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {addressErrors.phone && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{addressErrors.phone}</p>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
@@ -341,9 +460,19 @@ export default function CheckoutPage() {
                       type="email"
                       required
                       value={address.email}
-                      onChange={(e) => setAddress({ ...address, email: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                      onChange={(e) => {
+                        setAddress({ ...address, email: e.target.value });
+                        if (addressErrors.email) setAddressErrors((prev) => ({ ...prev, email: "" }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 font-medium ${
+                        addressErrors.email
+                          ? "border-rose-500 focus:ring-rose-500/20 focus:border-rose-500"
+                          : "border-gray-200 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {addressErrors.email && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{addressErrors.email}</p>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
@@ -354,9 +483,19 @@ export default function CheckoutPage() {
                       type="text"
                       required
                       value={address.addressLine1}
-                      onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                      onChange={(e) => {
+                        setAddress({ ...address, addressLine1: e.target.value });
+                        if (addressErrors.addressLine1) setAddressErrors((prev) => ({ ...prev, addressLine1: "" }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 font-medium ${
+                        addressErrors.addressLine1
+                          ? "border-rose-500 focus:ring-rose-500/20 focus:border-rose-500"
+                          : "border-gray-200 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {addressErrors.addressLine1 && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{addressErrors.addressLine1}</p>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
@@ -387,11 +526,21 @@ export default function CheckoutPage() {
                       required
                       maxLength={6}
                       value={address.pinCode}
-                      onChange={(e) => handlePinChange(e.target.value)}
+                      onChange={(e) => {
+                        handlePinChange(e.target.value);
+                        if (addressErrors.pinCode) setAddressErrors((prev) => ({ ...prev, pinCode: "" }));
+                      }}
                       placeholder="e.g. 400050"
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono font-bold"
+                      className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 font-mono font-bold ${
+                        addressErrors.pinCode
+                          ? "border-rose-500 focus:ring-rose-500/20 focus:border-rose-500"
+                          : "border-gray-200 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
-                    {pinStatusMsg && (
+                    {addressErrors.pinCode && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{addressErrors.pinCode}</p>
+                    )}
+                    {pinStatusMsg && !addressErrors.pinCode && (
                       <p className="text-[10px] text-emerald-700 font-semibold mt-1">
                         {pinStatusMsg}
                       </p>
@@ -406,9 +555,19 @@ export default function CheckoutPage() {
                       type="text"
                       required
                       value={address.city}
-                      onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                      onChange={(e) => {
+                        setAddress({ ...address, city: e.target.value });
+                        if (addressErrors.city) setAddressErrors((prev) => ({ ...prev, city: "" }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 font-medium ${
+                        addressErrors.city
+                          ? "border-rose-500 focus:ring-rose-500/20 focus:border-rose-500"
+                          : "border-gray-200 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {addressErrors.city && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{addressErrors.city}</p>
+                    )}
                   </div>
 
                   <div>
@@ -525,6 +684,7 @@ export default function CheckoutPage() {
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
                           setRxFileName(e.target.files[0].name);
+                          if (rxErrors.rxFile) setRxErrors((prev) => ({ ...prev, rxFile: "" }));
                         }
                       }}
                       className="mt-3 text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
@@ -533,6 +693,9 @@ export default function CheckoutPage() {
                       <p className="mt-3 text-xs text-emerald-700 font-semibold flex items-center justify-center gap-1">
                         <CheckCircle2 className="w-4 h-4" /> Selected: {rxFileName}
                       </p>
+                    )}
+                    {rxErrors.rxFile && (
+                      <p className="mt-2 text-xs text-rose-600 font-medium">{rxErrors.rxFile}</p>
                     )}
                   </div>
                 )}
@@ -546,11 +709,17 @@ export default function CheckoutPage() {
                       <input
                         type="text"
                         value={doctorDetails.doctorName}
-                        onChange={(e) =>
-                          setDoctorDetails({ ...doctorDetails, doctorName: e.target.value })
-                        }
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl"
+                        onChange={(e) => {
+                          setDoctorDetails({ ...doctorDetails, doctorName: e.target.value });
+                          if (rxErrors.doctorName) setRxErrors((prev) => ({ ...prev, doctorName: "" }));
+                        }}
+                        className={`w-full px-3 py-2 bg-white border rounded-xl ${
+                          rxErrors.doctorName ? "border-rose-500" : "border-gray-200"
+                        }`}
                       />
+                      {rxErrors.doctorName && (
+                        <p className="text-[11px] text-rose-600 font-medium mt-1">{rxErrors.doctorName}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block font-semibold text-gray-700 mb-1">
@@ -559,11 +728,17 @@ export default function CheckoutPage() {
                       <input
                         type="text"
                         value={doctorDetails.regNumber}
-                        onChange={(e) =>
-                          setDoctorDetails({ ...doctorDetails, regNumber: e.target.value })
-                        }
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl font-mono"
+                        onChange={(e) => {
+                          setDoctorDetails({ ...doctorDetails, regNumber: e.target.value });
+                          if (rxErrors.regNumber) setRxErrors((prev) => ({ ...prev, regNumber: "" }));
+                        }}
+                        className={`w-full px-3 py-2 bg-white border rounded-xl font-mono ${
+                          rxErrors.regNumber ? "border-rose-500" : "border-gray-200"
+                        }`}
                       />
+                      {rxErrors.regNumber && (
+                        <p className="text-[11px] text-rose-600 font-medium mt-1">{rxErrors.regNumber}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block font-semibold text-gray-700 mb-1">
@@ -572,11 +747,17 @@ export default function CheckoutPage() {
                       <input
                         type="text"
                         value={doctorDetails.clinic}
-                        onChange={(e) =>
-                          setDoctorDetails({ ...doctorDetails, clinic: e.target.value })
-                        }
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl"
+                        onChange={(e) => {
+                          setDoctorDetails({ ...doctorDetails, clinic: e.target.value });
+                          if (rxErrors.clinic) setRxErrors((prev) => ({ ...prev, clinic: "" }));
+                        }}
+                        className={`w-full px-3 py-2 bg-white border rounded-xl ${
+                          rxErrors.clinic ? "border-rose-500" : "border-gray-200"
+                        }`}
                       />
+                      {rxErrors.clinic && (
+                        <p className="text-[11px] text-rose-600 font-medium mt-1">{rxErrors.clinic}</p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -754,14 +935,22 @@ export default function CheckoutPage() {
                 {paymentMethod === "upi" && (
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
                     <p className="font-bold text-gray-800">Enter your UPI Virtual Payment Address (VPA)</p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-1">
                       <input
                         type="text"
                         value={upiId}
-                        onChange={(e) => setUpiId(e.target.value)}
+                        onChange={(e) => {
+                          setUpiId(e.target.value);
+                          if (paymentErrors.upiId) setPaymentErrors((prev) => ({ ...prev, upiId: "" }));
+                        }}
                         placeholder="e.g. mobile@upi or username@okaxis"
-                        className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-xl font-mono text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                        className={`w-full px-3 py-2 bg-white border rounded-xl font-mono text-xs text-gray-900 focus:outline-none ${
+                          paymentErrors.upiId ? "border-rose-500" : "border-gray-300 focus:border-blue-500"
+                        }`}
                       />
+                      {paymentErrors.upiId && (
+                        <p className="text-[11px] text-rose-600 font-medium">{paymentErrors.upiId}</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-gray-500">
                       <Lock className="w-3 h-3 text-emerald-600" />
@@ -778,27 +967,57 @@ export default function CheckoutPage() {
                       </label>
                       <input
                         type="text"
+                        value={cardDetails.number}
+                        onChange={(e) => {
+                          setCardDetails({ ...cardDetails, number: e.target.value });
+                          if (paymentErrors.cardNumber) setPaymentErrors((prev) => ({ ...prev, cardNumber: "" }));
+                        }}
                         placeholder="4532 •••• •••• 8819"
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl font-mono"
+                        className={`w-full px-3 py-2 bg-white border rounded-xl font-mono ${
+                          paymentErrors.cardNumber ? "border-rose-500" : "border-gray-300"
+                        }`}
                       />
+                      {paymentErrors.cardNumber && (
+                        <p className="text-[11px] text-rose-600 font-medium mt-1">{paymentErrors.cardNumber}</p>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-gray-700 font-semibold mb-1">Valid Thru</label>
                         <input
                           type="text"
+                          value={cardDetails.expiry}
+                          onChange={(e) => {
+                            setCardDetails({ ...cardDetails, expiry: e.target.value });
+                            if (paymentErrors.cardExpiry) setPaymentErrors((prev) => ({ ...prev, cardExpiry: "" }));
+                          }}
                           placeholder="MM / YY"
-                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl font-mono"
+                          className={`w-full px-3 py-2 bg-white border rounded-xl font-mono ${
+                            paymentErrors.cardExpiry ? "border-rose-500" : "border-gray-300"
+                          }`}
                         />
+                        {paymentErrors.cardExpiry && (
+                          <p className="text-[11px] text-rose-600 font-medium mt-1">{paymentErrors.cardExpiry}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-gray-700 font-semibold mb-1">CVV</label>
                         <input
                           type="password"
                           maxLength={4}
+                          value={cardDetails.cvv}
+                          onChange={(e) => {
+                            setCardDetails({ ...cardDetails, cvv: e.target.value });
+                            if (paymentErrors.cardCvv) setPaymentErrors((prev) => ({ ...prev, cardCvv: "" }));
+                          }}
                           placeholder="•••"
-                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl font-mono"
+                          className={`w-full px-3 py-2 bg-white border rounded-xl font-mono ${
+                            paymentErrors.cardCvv ? "border-rose-500" : "border-gray-300"
+                          }`}
                         />
+                        {paymentErrors.cardCvv && (
+                          <p className="text-[11px] text-rose-600 font-medium mt-1">{paymentErrors.cardCvv}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -831,6 +1050,41 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
+                {/* Server Validation / Stock Error Banner */}
+                {serverError && (
+                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-3 animate-in fade-in">
+                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                      <p className="font-bold text-rose-800">Order Verification Alert</p>
+                      <p className="mt-0.5 leading-relaxed text-rose-700">{serverError}</p>
+                      <Link
+                        href="/cart"
+                        className="inline-block mt-2 font-bold text-rose-800 underline hover:text-rose-950"
+                      >
+                        Return to Cart to update items →
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {hasOutOfStockItems && (
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                      <p className="font-bold text-amber-800">Warehouse Inventory Alert</p>
+                      <p className="mt-0.5 text-amber-700">
+                        One or more items in your cart are sold out or exceed available stock. Please update your cart before proceeding.
+                      </p>
+                      <Link
+                        href="/cart"
+                        className="inline-block mt-2 font-bold text-amber-900 underline hover:text-amber-950"
+                      >
+                        Go to Cart →
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                   <Button
                     type="button"
@@ -841,14 +1095,24 @@ export default function CheckoutPage() {
                   >
                     Back
                   </Button>
-                  <Button
-                    type="button"
-                    onClick={handlePlaceOrder}
-                    isLoading={isProcessing}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-8 py-3 rounded-xl shadow-lg shadow-emerald-600/25"
-                  >
-                    Pay & Authorize Dispense ({formatINR(grandTotal)})
-                  </Button>
+                  {hasOutOfStockItems ? (
+                    <Button
+                      type="button"
+                      disabled
+                      className="bg-gray-300 text-gray-500 font-bold text-sm px-8 py-3 rounded-xl cursor-not-allowed border-gray-300"
+                    >
+                      Items Sold Out • Cannot Pay
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={handlePlaceOrder}
+                      isLoading={isProcessing}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-8 py-3 rounded-xl shadow-lg shadow-emerald-600/25"
+                    >
+                      Pay & Authorize Dispense ({formatINR(grandTotal)})
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

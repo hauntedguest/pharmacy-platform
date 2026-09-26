@@ -16,7 +16,16 @@ import { brandConfig } from "@/lib/config/brand";
 
 export default function AdminSettingsPage() {
   const [saved, setSaved] = useState(false);
-  const [licenses, setLicenses] = useState({
+  const [licenses, setLicenses] = useState<{
+    drugLicense: string;
+    fssaiLicense: string;
+    gstNumber: string;
+    pharmacistName: string;
+    pharmacistRegNo: string;
+    minColdChainTemp: string;
+    maxColdChainTemp: string;
+    alertPhone: string;
+  }>({
     drugLicense: brandConfig.legal.pharmacyLicense,
     fssaiLicense: brandConfig.legal.fssaiLicense,
     gstNumber: brandConfig.legal.gstNumber,

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -19,7 +19,7 @@ import {
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import ProductCard3D from "@/components/products/ProductCard3D";
-import { getProductBySlug, mockProducts, formatINR } from "@/lib/data/products";
+import { getProductBySlug, mockProducts, formatINR, type Product } from "@/lib/data/products";
 import { brandConfig } from "@/lib/config/brand";
 import { useCart } from "@/context/CartContext";
 
@@ -29,17 +29,68 @@ interface PageProps {
 
 export default function ProductDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
-  const product = getProductBySlug(resolvedParams.slug);
+  const initialProduct =
+    getProductBySlug(resolvedParams.slug) ||
+    mockProducts.find((p) => p.id === resolvedParams.slug || p.slug === resolvedParams.slug) ||
+    null;
 
+  const [product, setProduct] = useState<Product | null>(initialProduct);
+  const [isLoading, setIsLoading] = useState<boolean>(!initialProduct);
+  const [hasChecked, setHasChecked] = useState<boolean>(Boolean(initialProduct));
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<"overview" | "composition" | "safety" | "faq">("overview");
   const [pinCode, setPinCode] = useState("400051");
   const [isPinChecked, setIsPinChecked] = useState(true);
 
-  if (!product) {
+  // Fetch live product from API
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchLiveProduct() {
+      try {
+        const res = await fetch(`/api/products/${resolvedParams.slug}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data && isMounted) {
+            setProduct(json.data);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch live product details:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+          setHasChecked(true);
+        }
+      }
+    }
+    fetchLiveProduct();
+    return () => {
+      isMounted = false;
+    };
+  }, [resolvedParams.slug]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[70vh] bg-slate-50/60 flex items-center justify-center">
+        <div className="text-center p-8 bg-white rounded-3xl border border-gray-200 shadow-sm max-w-sm w-full mx-4">
+          <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-sm font-bold text-gray-900">Loading Formulation</h3>
+          <p className="text-xs text-gray-500 mt-1">Retrieving verified laboratory data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product && hasChecked) {
     notFound();
   }
+
+  if (!product) {
+    return null;
+  }
+
+  const isSoldOut = (product.stock ?? 0) <= 0 || product.inStock === false;
 
   const discountPercent = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -84,7 +135,11 @@ export default function ProductDetailPage({ params }: PageProps) {
             <div className="bg-white rounded-3xl border border-gray-200 p-8 shadow-xs relative overflow-hidden flex flex-col items-center justify-center min-h-[420px]">
               {/* Badges */}
               <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-                {product.requiresPrescription ? (
+                {isSoldOut ? (
+                  <Badge variant="danger" className="text-xs uppercase font-extrabold tracking-wider bg-rose-600 text-white animate-pulse">
+                    SOLD OUT
+                  </Badge>
+                ) : product.requiresPrescription ? (
                   <Badge variant="warning" className="text-xs uppercase font-bold tracking-wider">
                     {product.prescriptionType || "Schedule H"} Drug
                   </Badge>
@@ -93,7 +148,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                     OTC Formulation
                   </Badge>
                 )}
-                {discountPercent > 0 && (
+                {discountPercent > 0 && !isSoldOut && (
                   <Badge variant="danger" className="text-xs font-bold">
                     {discountPercent}% SAVINGS
                   </Badge>
@@ -104,7 +159,7 @@ export default function ProductDetailPage({ params }: PageProps) {
               <div className="absolute w-56 h-56 rounded-full bg-gradient-to-tr from-blue-400/10 via-teal-400/10 to-indigo-400/10 blur-3xl pointer-events-none" />
 
               {/* 3D Visual Centerpiece */}
-              <div className="relative z-10 w-44 h-44 rounded-3xl bg-gradient-to-br from-blue-50/80 to-teal-50/80 border border-blue-100 flex flex-col items-center justify-center shadow-lg">
+              <div className={`relative z-10 w-44 h-44 rounded-3xl bg-gradient-to-br from-blue-50/80 to-teal-50/80 border border-blue-100 flex flex-col items-center justify-center shadow-lg ${isSoldOut ? "grayscale opacity-75" : ""}`}>
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-teal-500 text-white flex items-center justify-center shadow-md mb-3">
                   <Pill className="w-10 h-10" />
                 </div>
@@ -176,13 +231,16 @@ export default function ProductDetailPage({ params }: PageProps) {
                 <span className="font-semibold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-md">
                   {product.packSize}
                 </span>
-                {product.stock > 0 ? (
+                {isSoldOut ? (
+                  <span className="text-rose-600 font-bold flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-md">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    Sold Out • Out of Stock
+                  </span>
+                ) : (
                   <span className="text-emerald-700 font-medium flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     In Stock ({product.stock} units left)
                   </span>
-                ) : (
-                  <span className="text-rose-600 font-medium">Out of Stock</span>
                 )}
               </div>
             </div>
@@ -200,7 +258,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                         MRP {formatINR(product.originalPrice)}
                       </span>
                     )}
-                    {discountPercent > 0 && (
+                    {discountPercent > 0 && !isSoldOut && (
                       <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                         {discountPercent}% OFF
                       </span>
@@ -227,19 +285,36 @@ export default function ProductDetailPage({ params }: PageProps) {
                 </div>
               )}
 
+              {/* Sold Out Notice */}
+              {isSoldOut && (
+                <div className="mt-5 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-rose-800">
+                      Currently Out of Stock
+                    </h4>
+                    <p className="text-xs text-rose-700 mt-1 leading-relaxed">
+                      This formulation is temporarily sold out due to high clinical demand. Our next batch is undergoing analytical testing and will be released to inventory soon.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Quantity & CTA */}
               <div className="mt-6 flex flex-col sm:flex-row items-center gap-4">
-                <div className="flex items-center border border-gray-300 rounded-xl bg-gray-50 p-1 w-full sm:w-auto justify-between">
+                <div className={`flex items-center border border-gray-300 rounded-xl bg-gray-50 p-1 w-full sm:w-auto justify-between ${isSoldOut ? "opacity-40 pointer-events-none" : ""}`}>
                   <button
+                    disabled={isSoldOut || quantity <= 1}
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="w-9 h-9 flex items-center justify-center font-bold text-gray-600 hover:bg-white rounded-lg transition-colors"
+                    className="w-9 h-9 flex items-center justify-center font-bold text-gray-600 hover:bg-white rounded-lg transition-colors disabled:opacity-30"
                   >
                     -
                   </button>
-                  <span className="px-4 font-bold text-sm text-gray-900">{quantity}</span>
+                  <span className="px-4 font-bold text-sm text-gray-900">{isSoldOut ? 0 : quantity}</span>
                   <button
+                    disabled={isSoldOut || quantity >= product.stock}
                     onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
-                    className="w-9 h-9 flex items-center justify-center font-bold text-gray-600 hover:bg-white rounded-lg transition-colors"
+                    className="w-9 h-9 flex items-center justify-center font-bold text-gray-600 hover:bg-white rounded-lg transition-colors disabled:opacity-30"
                   >
                     +
                   </button>
@@ -248,21 +323,32 @@ export default function ProductDetailPage({ params }: PageProps) {
                 <Button
                   variant="primary"
                   size="lg"
-                  onClick={() => addToCart(product, quantity)}
-                  className="w-full sm:flex-1 font-semibold text-sm shadow-md shadow-blue-500/20"
+                  disabled={isSoldOut}
+                  onClick={() => !isSoldOut && addToCart(product, quantity)}
+                  className={`w-full sm:flex-1 font-semibold text-sm shadow-md ${
+                    isSoldOut
+                      ? "bg-gray-300 hover:bg-gray-300 text-gray-500 cursor-not-allowed border-gray-300 shadow-none"
+                      : "shadow-blue-500/20"
+                  }`}
                 >
-                  {product.requiresPrescription ? "Add to Cart (Rx Verification)" : "Add to Cart"}
+                  {isSoldOut
+                    ? "Sold Out • Temporarily Unavailable"
+                    : product.requiresPrescription
+                    ? "Add to Cart (Rx Verification)"
+                    : "Add to Cart"}
                 </Button>
 
-                <Button
-                  asChild
-                  variant="secondary"
-                  size="lg"
-                  onClick={() => addToCart(product, quantity)}
-                  className="w-full sm:w-auto font-semibold text-sm"
-                >
-                  <Link href="/checkout">Buy Now</Link>
-                </Button>
+                {!isSoldOut && (
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => addToCart(product, quantity)}
+                    className="w-full sm:w-auto font-semibold text-sm"
+                  >
+                    <Link href="/checkout">Buy Now</Link>
+                  </Button>
+                )}
               </div>
             </div>
 

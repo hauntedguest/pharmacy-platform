@@ -49,6 +49,7 @@ export default function CartPage() {
     attachPrescription,
     removePrescription,
     addToCart,
+    hasOutOfStockItems,
   } = useCart();
 
   const [promoInput, setPromoInput] = useState("");
@@ -296,87 +297,113 @@ export default function CartPage() {
 
             {/* Cart Items List */}
             <div className="bg-white rounded-3xl border border-gray-200 shadow-xs overflow-hidden divide-y divide-gray-100">
-              {items.map(({ product, quantity }) => (
-                <div
-                  key={product.id}
-                  className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/40 transition-colors"
-                >
-                  {/* Product Details */}
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-50 to-teal-50 border border-blue-100 flex items-center justify-center font-bold text-sm text-blue-600 shrink-0">
-                      {product.name.substring(0, 2).toUpperCase()}
+              {items.map(({ product, quantity }) => {
+                const isSoldOut = (product.stock ?? 0) <= 0 || product.inStock === false;
+                const isExceedingStock = !isSoldOut && quantity > product.stock;
+
+                return (
+                  <div
+                    key={product.id}
+                    className={`p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${
+                      isSoldOut ? "bg-rose-50/40" : "hover:bg-slate-50/40"
+                    }`}
+                  >
+                    {/* Product Details */}
+                    <div className="flex items-start gap-4 flex-1">
+                      <div
+                        className={`w-16 h-16 rounded-2xl border flex items-center justify-center font-bold text-sm shrink-0 ${
+                          isSoldOut
+                            ? "bg-rose-100/70 border-rose-200 text-rose-600"
+                            : "bg-gradient-to-br from-blue-50 to-teal-50 border-blue-100 text-blue-600"
+                        }`}
+                      >
+                        {product.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-semibold text-blue-600">{product.brand}</span>
+                          {isSoldOut ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-rose-600 text-white shadow-xs animate-pulse">
+                              Sold Out
+                            </span>
+                          ) : isExceedingStock ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                              Only {product.stock} left in stock
+                            </span>
+                          ) : product.requiresPrescription ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                              {product.prescriptionType || "Schedule H"}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              OTC
+                            </span>
+                          )}
+                        </div>
+                        <Link
+                          href={`/products/${product.slug}`}
+                          className="font-bold text-gray-900 text-sm sm:text-base hover:text-blue-600 transition-colors block truncate"
+                        >
+                          {product.name}
+                        </Link>
+                        <p className="text-xs text-gray-500">
+                          Pack: {product.packSize} {product.activeIngredient && `• ${product.activeIngredient}`}
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-1 flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-blue-600">{product.brand}</span>
-                        {product.requiresPrescription ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                            {product.prescriptionType || "Schedule H"}
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            OTC
-                          </span>
+
+                    {/* Quantity & Price */}
+                    <div className="flex items-center justify-between sm:justify-end gap-6 sm:gap-8 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                      {/* Quantity Stepper */}
+                      <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+                        <button
+                          onClick={() => updateQuantity(product.id, quantity - 1)}
+                          className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 transition-colors"
+                          aria-label="Decrease quantity"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="px-3 py-1 text-xs font-bold text-gray-900 min-w-[28px] text-center">
+                          {quantity}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity(product.id, quantity + 1)}
+                          disabled={isSoldOut || quantity >= product.stock}
+                          className={`px-3 py-1.5 transition-colors ${
+                            isSoldOut || quantity >= product.stock
+                              ? "text-gray-300 cursor-not-allowed bg-gray-100"
+                              : "text-gray-600 hover:bg-gray-200"
+                          }`}
+                          aria-label="Increase quantity"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Pricing */}
+                      <div className="text-right min-w-[100px]">
+                        <p className="font-extrabold text-base text-gray-900">
+                          {formatINR(product.price * quantity)}
+                        </p>
+                        {product.originalPrice && (
+                          <p className="text-[11px] text-gray-400 line-through">
+                            MRP {formatINR(product.originalPrice * quantity)}
+                          </p>
                         )}
                       </div>
-                      <Link
-                        href={`/products/${product.slug}`}
-                        className="font-bold text-gray-900 text-sm sm:text-base hover:text-blue-600 transition-colors block truncate"
-                      >
-                        {product.name}
-                      </Link>
-                      <p className="text-xs text-gray-500">
-                        Pack: {product.packSize} {product.activeIngredient && `• ${product.activeIngredient}`}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Quantity & Price */}
-                  <div className="flex items-center justify-between sm:justify-end gap-6 sm:gap-8 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
-                    {/* Quantity Stepper */}
-                    <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+                      {/* Remove */}
                       <button
-                        onClick={() => updateQuantity(product.id, quantity - 1)}
-                        className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 transition-colors"
-                        aria-label="Decrease quantity"
+                        onClick={() => removeFromCart(product.id)}
+                        className="text-gray-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                        title="Remove item"
                       >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="px-3 py-1 text-xs font-bold text-gray-900 min-w-[28px] text-center">
-                        {quantity}
-                      </span>
-                      <button
-                        onClick={() => updateQuantity(product.id, quantity + 1)}
-                        className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 transition-colors"
-                        aria-label="Increase quantity"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-
-                    {/* Pricing */}
-                    <div className="text-right min-w-[100px]">
-                      <p className="font-extrabold text-base text-gray-900">
-                        {formatINR(product.price * quantity)}
-                      </p>
-                      {product.originalPrice && (
-                        <p className="text-[11px] text-gray-400 line-through">
-                          MRP {formatINR(product.originalPrice * quantity)}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Remove */}
-                    <button
-                      onClick={() => removeFromCart(product.id)}
-                      className="text-gray-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
-                      title="Remove item"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Cross-Sell Recommendations */}
@@ -568,15 +595,34 @@ export default function CartPage() {
                 </div>
               )}
 
+              {/* Out of Stock Warning */}
+              {hasOutOfStockItems && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span className="leading-tight text-[11px]">
+                    Some items in your cart are currently sold out or exceed available warehouse stock. Please remove or adjust them before proceeding to checkout.
+                  </span>
+                </div>
+              )}
+
               {/* Checkout Button */}
-              <Button
-                asChild
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-3 rounded-2xl shadow-md shadow-blue-500/25 flex items-center justify-center gap-2"
-              >
-                <Link href="/checkout">
-                  Proceed to Checkout <ArrowRight className="w-4 h-4" />
-                </Link>
-              </Button>
+              {hasOutOfStockItems ? (
+                <Button
+                  disabled
+                  className="w-full bg-gray-200 text-gray-400 font-bold text-sm py-3 rounded-2xl cursor-not-allowed border border-gray-300 flex items-center justify-center gap-2"
+                >
+                  Items Out of Stock • Cannot Checkout
+                </Button>
+              ) : (
+                <Button
+                  asChild
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-3 rounded-2xl shadow-md shadow-blue-500/25 flex items-center justify-center gap-2"
+                >
+                  <Link href="/checkout">
+                    Proceed to Checkout <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              )}
 
               {/* Regulatory / Security Guarantee */}
               <div className="pt-3 border-t border-gray-100 text-[11px] text-gray-400 space-y-1.5">

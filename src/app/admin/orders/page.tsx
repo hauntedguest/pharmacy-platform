@@ -119,32 +119,41 @@ export default function AdminOrdersPage() {
       const res = await fetch("/api/orders");
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.data && json.data.length > 0) {
-          const mapped: Order[] = json.data.map((o: any) => ({
-            id: o.id,
-            customerName: o.customerName,
-            phone: o.customerPhone,
-            city: o.shippingCity,
-            pinCode: o.shippingPincode,
-            items: o.items.map((it: any) => ({
-              name: it.productName,
-              qty: it.quantity,
-              price: it.unitPrice,
-            })),
-            totalAmount: o.totalAmount,
-            paymentMethod: o.paymentMethod,
-            status: o.status,
-            isColdChain: o.isColdChain,
-            coldChainTemp: o.currentPayloadTemp || "3.6°C",
-            date: new Date(o.createdAt).toLocaleString("en-IN", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            trackingNumber: o.trackingNumber,
-          }));
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped: Order[] = json.data.map((o: any) => {
+            const calculatedSum = (o.items || []).reduce(
+              (s: number, it: any) => s + (Number(it.unitPrice) || 0) * (Number(it.quantity) || 1),
+              0
+            );
+            const total = Number(o.totalAmount) > 0 ? Number(o.totalAmount) : calculatedSum;
+            return {
+              id: o.id,
+              customerName: o.customerName || "Customer",
+              phone: o.customerPhone || "N/A",
+              city: o.shippingCity || "India",
+              pinCode: o.shippingPincode || "",
+              items: (o.items || []).map((it: any) => ({
+                name: it.productName || "Formulation",
+                qty: Number(it.quantity) || 1,
+                price: Number(it.unitPrice) || 0,
+              })),
+              totalAmount: total,
+              paymentMethod: o.paymentMethod || "UPI",
+              status: o.status || "Verified",
+              isColdChain: Boolean(o.isColdChain),
+              coldChainTemp: o.currentPayloadTemp || (o.isColdChain ? "3.6°C" : "Ambient"),
+              date: o.createdAt
+                ? new Date(o.createdAt).toLocaleString("en-IN", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : new Date().toLocaleDateString("en-IN"),
+              trackingNumber: o.trackingNumber || `MCP-${o.id}`,
+            };
+          });
           setOrders(mapped);
         }
       }
@@ -200,6 +209,15 @@ export default function AdminOrdersPage() {
             Real-time tracking of nationwide dispatches across Indian PIN codes with thermal sensor monitoring.
           </p>
         </div>
+
+        <button
+          onClick={fetchOrders}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-blue-400" : "text-slate-400"}`} />
+          <span>{isLoading ? "Refreshing..." : "Refresh Dispatches"}</span>
+        </button>
       </div>
 
       {/* Filter & Search Bar */}

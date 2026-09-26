@@ -8,4 +8,9 @@ export const batchService = {
   async getBatchById(batchId: string): Promise<BatchRecord | null> {
     return await db.getBatchById(batchId);
   },
+
+  async createBatch(batch: BatchRecord): Promise<BatchRecord> {
+    return await db.createBatch(batch);
+  },
 };
+

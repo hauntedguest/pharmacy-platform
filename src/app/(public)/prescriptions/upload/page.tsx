@@ -13,12 +13,18 @@ import {
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { brandConfig } from "@/lib/config/brand";
+import {
+  isValidIndianPhone,
+  isValidIndianPincode,
+  isValidPrescriptionFile,
+} from "@/lib/validation/validators";
 
 export default function PrescriptionUploadPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submittedRxId, setSubmittedRxId] = useState<string>("RX-IND-8942");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     patientName: "",
     patientAge: "",
@@ -31,13 +37,44 @@ export default function PrescriptionUploadPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+      const file = e.target.files[0];
+      const check = isValidPrescriptionFile(file);
+      if (!check.valid) {
+        setFormErrors((prev) => ({ ...prev, file: check.error || "Invalid file format." }));
+        setSelectedFile(null);
+      } else {
+        setFormErrors((prev) => ({ ...prev, file: "" }));
+        setSelectedFile(file);
+      }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile || !formData.declaration) return;
+    const errors: Record<string, string> = {};
+
+    if (!selectedFile) {
+      errors.file = "Please upload a prescription file (JPEG, PNG, WEBP, or PDF).";
+    }
+    if (!formData.patientName.trim() || formData.patientName.trim().length < 2) {
+      errors.patientName = "Please enter patient's full name (at least 2 characters).";
+    }
+    if (!isValidIndianPhone(formData.phone)) {
+      errors.phone = "Please enter a valid 10-digit Indian mobile number (e.g. 9876543210).";
+    }
+    const age = parseInt(formData.patientAge, 10);
+    if (isNaN(age) || age < 1 || age > 125) {
+      errors.patientAge = "Please enter a valid age between 1 and 125.";
+    }
+    if (!isValidIndianPincode(formData.pinCode)) {
+      errors.pinCode = "Please enter a valid 6-digit Indian PIN code.";
+    }
+    if (!formData.declaration) {
+      errors.declaration = "You must accept the statutory medical declaration to proceed.";
+    }
+
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setIsUploading(true);
     try {
@@ -52,7 +89,7 @@ export default function PrescriptionUploadPage() {
         doctorRegNo: "MMC-2022-77182",
         clinicHospital: "Doctor Clinic on Record",
         medications: formData.notes ? [formData.notes] : ["Schedule H / H1 Formulations"],
-        fileUrl: `/uploads/rx-${Date.now()}-${selectedFile.name}`,
+        fileUrl: `/uploads/rx-${Date.now()}-${selectedFile?.name || "rx-document.pdf"}`,
       };
 
       const res = await fetch("/api/prescriptions", {
@@ -137,13 +174,16 @@ export default function PrescriptionUploadPage() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-3">
                   Upload Rx File or Photo (JPG, PNG, PDF up to 15MB)
                 </label>
-                <div className="relative border-2 border-dashed border-gray-300 hover:border-blue-500 rounded-2xl p-8 text-center bg-gray-50/50 hover:bg-blue-50/30 transition-all cursor-pointer">
+                <div className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
+                  formErrors.file
+                    ? "border-rose-400 bg-rose-50/20"
+                    : "border-gray-300 hover:border-blue-500 bg-gray-50/50 hover:bg-blue-50/30"
+                }`}>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
                     onChange={handleFileChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    required
                   />
                   <div className="flex flex-col items-center">
                     <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mb-3">
@@ -171,6 +211,9 @@ export default function PrescriptionUploadPage() {
                     )}
                   </div>
                 </div>
+                {formErrors.file && (
+                  <p className="text-xs text-rose-600 font-medium mt-1.5">{formErrors.file}</p>
+                )}
               </div>
 
               {/* Patient Details */}
@@ -188,9 +231,19 @@ export default function PrescriptionUploadPage() {
                       required
                       placeholder="e.g. Rajesh Sharma"
                       value={formData.patientName}
-                      onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
-                      className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      onChange={(e) => {
+                        setFormData({ ...formData, patientName: e.target.value });
+                        if (formErrors.patientName) setFormErrors((prev) => ({ ...prev, patientName: "" }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs outline-none ${
+                        formErrors.patientName
+                          ? "border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+                          : "border-gray-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {formErrors.patientName && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{formErrors.patientName}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -201,9 +254,19 @@ export default function PrescriptionUploadPage() {
                       required
                       placeholder="+91 98765 43210"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      onChange={(e) => {
+                        setFormData({ ...formData, phone: e.target.value });
+                        if (formErrors.phone) setFormErrors((prev) => ({ ...prev, phone: "" }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs outline-none ${
+                        formErrors.phone
+                          ? "border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+                          : "border-gray-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {formErrors.phone && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{formErrors.phone}</p>
+                    )}
                   </div>
                 </div>
 
@@ -219,9 +282,19 @@ export default function PrescriptionUploadPage() {
                       max={120}
                       placeholder="e.g. 45"
                       value={formData.patientAge}
-                      onChange={(e) => setFormData({ ...formData, patientAge: e.target.value })}
-                      className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      onChange={(e) => {
+                        setFormData({ ...formData, patientAge: e.target.value });
+                        if (formErrors.patientAge) setFormErrors((prev) => ({ ...prev, patientAge: "" }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs outline-none ${
+                        formErrors.patientAge
+                          ? "border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+                          : "border-gray-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {formErrors.patientAge && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{formErrors.patientAge}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -247,9 +320,19 @@ export default function PrescriptionUploadPage() {
                       maxLength={6}
                       placeholder="e.g. 400051"
                       value={formData.pinCode}
-                      onChange={(e) => setFormData({ ...formData, pinCode: e.target.value })}
-                      className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      onChange={(e) => {
+                        setFormData({ ...formData, pinCode: e.target.value });
+                        if (formErrors.pinCode) setFormErrors((prev) => ({ ...prev, pinCode: "" }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs outline-none ${
+                        formErrors.pinCode
+                          ? "border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+                          : "border-gray-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
+                    {formErrors.pinCode && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">{formErrors.pinCode}</p>
+                    )}
                   </div>
                 </div>
 
@@ -268,19 +351,27 @@ export default function PrescriptionUploadPage() {
               </div>
 
               {/* Statutory Legal Declaration (Drugs & Cosmetics Act) */}
-              <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200">
+              <div className={`p-4 rounded-2xl border ${
+                formErrors.declaration ? "bg-rose-50/40 border-rose-300" : "bg-gray-50 border-gray-200"
+              }`}>
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     required
                     checked={formData.declaration}
-                    onChange={(e) => setFormData({ ...formData, declaration: e.target.checked })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, declaration: e.target.checked });
+                      if (formErrors.declaration) setFormErrors((prev) => ({ ...prev, declaration: "" }));
+                    }}
                     className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
                   />
                   <span className="text-xs text-gray-600 leading-relaxed">
                     I declare that this prescription has been issued by a Registered Medical Practitioner (RMP) holding a valid MCI/State Medical Council registration number. I authorize the licensed pharmacists of <strong>{brandConfig.company.name}</strong> to dispense medications in strict compliance with the Drugs and Cosmetics Rules, 1945.
                   </span>
                 </label>
+                {formErrors.declaration && (
+                  <p className="text-[11px] text-rose-600 font-medium mt-2">{formErrors.declaration}</p>
+                )}
               </div>
 
               {/* Submit CTA */}

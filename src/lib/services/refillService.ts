@@ -1,4 +1,5 @@
 import { db, type RefillRecord } from "@/lib/db/repository";
+import { isValidIndianPhone } from "@/lib/validation/validators";
 
 export interface CreateRefillInput {
   productId: string;
@@ -20,15 +21,23 @@ export const refillService = {
   },
 
   async createRefill(input: CreateRefillInput): Promise<RefillRecord> {
+    if (!input.productName || !input.productId) {
+      throw new Error("Product ID and Formulation Name are required.");
+    }
+
+    if (!isValidIndianPhone(input.customerPhone)) {
+      throw new Error("Invalid Indian mobile number for refill notifications.");
+    }
+
     const nextDate = new Date();
     nextDate.setDate(nextDate.getDate() + (input.intervalDays || 30));
 
     return await db.createRefill({
       productId: input.productId,
       productName: input.productName,
-      customerName: input.customerName,
+      customerName: input.customerName || "Patient",
       customerPhone: input.customerPhone,
-      quantity: input.quantity || 1,
+      quantity: Math.max(1, input.quantity || 1),
       intervalDays: input.intervalDays || 30,
       nextRefillDate: nextDate.toISOString().split("T")[0],
       status: "Active",
@@ -40,5 +49,9 @@ export const refillService = {
 
   async updateRefillStatus(id: string, status: RefillRecord["status"]): Promise<RefillRecord | null> {
     return await db.updateRefillStatus(id, status);
+  },
+
+  async deleteRefill(id: string): Promise<boolean> {
+    return await db.deleteRefill(id);
   },
 };

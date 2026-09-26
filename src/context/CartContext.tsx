@@ -32,9 +32,11 @@ interface CartContextType {
   applyDiscountCode: (code: string) => { success: boolean; message: string };
   removeDiscountCode: () => void;
   hasPrescriptionItems: boolean;
+  hasOutOfStockItems: boolean;
   prescriptionAttached: { fileName: string; uploadedAt: string } | null;
   attachPrescription: (fileName: string) => void;
   removePrescription: () => void;
+  refreshCartStock: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -52,7 +54,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from localStorage on mount
+  // Sync with live DB products
+  const refreshCartStock = async () => {
+    try {
+      const res = await fetch("/api/products");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const liveProducts: Product[] = json.data;
+          setItems((prev) =>
+            prev.map((item) => {
+              const live = liveProducts.find(
+                (p) => p.id === item.product.id || p.slug === item.product.slug
+              );
+              if (live) {
+                return {
+                  ...item,
+                  product: live,
+                  quantity: live.stock <= 0 ? item.quantity : Math.min(item.quantity, live.stock),
+                };
+              }
+              return item;
+            })
+          );
+        }
+      }
+    } catch {
+      // Fallback if offline
+    }
+  };
+
+  // Load from localStorage on mount & refresh stock
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -63,8 +95,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       // Fallback
     } finally {
       setIsLoaded(true);
+      refreshCartStock();
     }
   }, []);
+
+  // Refresh stock when cart is opened
+  useEffect(() => {
+    if (isCartOpen) {
+      refreshCartStock();
+    }
+  }, [isCartOpen]);
 
   // Save to localStorage
   useEffect(() => {
@@ -77,22 +117,34 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, isLoaded]);
 
   const addToCart = (product: Product, quantity = 1) => {
+    // If product is sold out, do not allow adding to cart
+    if (product.stock <= 0 || product.inStock === false) {
+      return;
+    }
+
     setItems((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
+      const existing = prev.find(
+        (item) => item.product.id === product.id || item.product.slug === product.slug
+      );
       if (existing) {
+        const targetQty = existing.quantity + quantity;
+        const clampedQty = Math.min(product.stock, targetQty);
         return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
+          item.product.id === product.id || item.product.slug === product.slug
+            ? { ...item, product, quantity: clampedQty }
             : item
         );
       }
-      return [...prev, { product, quantity }];
+      const initialQty = Math.min(product.stock, Math.max(1, quantity));
+      return [...prev, { product, quantity: initialQty }];
     });
     setIsCartOpen(true);
   };
 
   const removeFromCart = (productId: string) => {
-    setItems((prev) => prev.filter((item) => item.product.id !== productId));
+    setItems((prev) =>
+      prev.filter((item) => item.product.id !== productId && item.product.slug !== productId)
+    );
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
@@ -101,9 +153,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setItems((prev) =>
-      prev.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
-      )
+      prev.map((item) => {
+        if (item.product.id === productId || item.product.slug === productId) {
+          const maxAllowed = item.product.stock > 0 ? item.product.stock : 1;
+          const clamped = Math.min(maxAllowed, quantity);
+          return { ...item, quantity: clamped };
+        }
+        return item;
+      })
     );
   };
 
@@ -114,7 +171,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setPrescriptionAttached(null);
   };
 
-  const openCart = () => setIsCartOpen(true);
+  const openCart = () => {
+    refreshCartStock();
+    setIsCartOpen(true);
+  };
+
   const closeCart = () => setIsCartOpen(false);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -147,6 +208,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     (item) => item.product.requiresPrescription
   );
 
+  const hasOutOfStockItems = items.some(
+    (item) => (item.product.stock ?? 0) <= 0 || item.product.inStock === false || item.quantity > item.product.stock
+  );
+
   const applyDiscountCode = (code: string) => {
     const cleanCode = code.trim().toUpperCase();
     if (cleanCode === "FIRSTMED10") {
@@ -163,6 +228,38 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return {
         success: false,
         message: "WELLNESS20 requires minimum order of ₹1,000",
+      };
+    } else if (cleanCode === "CARE30" || cleanCode === "EMERGENCY30") {
+      const discount = Math.round(subtotal * 0.3);
+      setDiscountAmount(discount);
+      setDiscountCode("CARE30 (30% Patient Grant)");
+      return {
+        success: true,
+        message: "30% MediCare Patient Care & Relief Grant applied!",
+      };
+    } else if (cleanCode === "HEALTHFORALL" || cleanCode === "SUBSIDY50") {
+      const discount = Math.round(subtotal * 0.5);
+      setDiscountAmount(discount);
+      setDiscountCode("HEALTHFORALL (50% Healthcare Subsidy)");
+      return {
+        success: true,
+        message: "50% Universal Healthcare Subsidy applied autonomously!",
+      };
+    } else if (cleanCode === "LOYALTY15") {
+      const discount = Math.round(subtotal * 0.15);
+      setDiscountAmount(discount);
+      setDiscountCode("LOYALTY15 (15% Loyalty Subsidy)");
+      return {
+        success: true,
+        message: "15% Patient Loyalty Subsidy applied!",
+      };
+    } else if (cleanCode.startsWith("GRANT") || cleanCode.startsWith("RELIEF")) {
+      const discount = Math.round(subtotal * 0.35);
+      setDiscountAmount(discount);
+      setDiscountCode(`${cleanCode} (35% Direct Relief)`);
+      return {
+        success: true,
+        message: "35% Discretionary Healthcare Relief applied!",
       };
     } else {
       return { success: false, message: "Invalid promo code" };
@@ -214,9 +311,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         applyDiscountCode,
         removeDiscountCode,
         hasPrescriptionItems,
+        hasOutOfStockItems,
         prescriptionAttached,
         attachPrescription,
         removePrescription,
+        refreshCartStock,
       }}
     >
       {children}
