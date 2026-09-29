@@ -17,31 +17,42 @@ export default function CinematicHeroScroll() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const targetProgressRef = useRef(0);
   const currentProgressRef = useRef(0);
   const rafRef = useRef<number | null>(null);
 
-  // Check reduced motion
+  // Check reduced motion & detect mobile
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mediaQuery.matches);
     const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
     mediaQuery.addEventListener("change", handler);
+
+    const mobile =
+      window.innerWidth < 768 ||
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+    setIsMobile(mobile);
+
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
-  // Smooth 60fps Lerp loop for scroll progress
+  // Smooth 60fps lerp loop
   useEffect(() => {
     let active = true;
 
     const tick = () => {
       if (!active) return;
 
-      // Smooth dampening factor
       const diff = targetProgressRef.current - currentProgressRef.current;
+      // Slower dampening on mobile for smoother feel
+      const dampFactor = isMobile ? 0.08 : 0.12;
+
       if (Math.abs(diff) > 0.0005) {
-        currentProgressRef.current += diff * 0.12;
+        currentProgressRef.current += diff * dampFactor;
         setScrollProgress(currentProgressRef.current);
       } else if (currentProgressRef.current !== targetProgressRef.current) {
         currentProgressRef.current = targetProgressRef.current;
@@ -56,9 +67,9 @@ export default function CinematicHeroScroll() {
       active = false;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [isMobile]);
 
-  // Native Scroll Listener
+  // Scroll listener
   useEffect(() => {
     const handleScroll = () => {
       if (isAutoPlaying || !containerRef.current) return;
@@ -80,23 +91,23 @@ export default function CinematicHeroScroll() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isAutoPlaying]);
 
-  // Auto-play timeline loop
+  // Auto-play timeline
   useEffect(() => {
     if (!isAutoPlaying) return;
 
-    let startTime = performance.now();
-    const duration = 14000; // 14 seconds full tour
+    const startTime = performance.now();
+    const duration = 14000;
 
-    const autoPlayInterval = setInterval(() => {
+    const interval = setInterval(() => {
       const elapsed = performance.now() - startTime;
       const progress = (elapsed % duration) / duration;
       targetProgressRef.current = progress;
     }, 16);
 
-    return () => clearInterval(autoPlayInterval);
+    return () => clearInterval(interval);
   }, [isAutoPlaying]);
 
-  // Jump to specific act
+  // Jump to act
   const jumpToAct = useCallback((actProgress: number) => {
     setIsAutoPlaying(false);
     if (!containerRef.current) return;
@@ -119,53 +130,58 @@ export default function CinematicHeroScroll() {
               Pharmaceutical Grade Formulation
             </span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-tight mb-4">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold text-white leading-tight mb-4">
             Precision Medicine.
             <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-400">
               Engineered for Human Potential.
             </span>
           </h1>
-          <p className="text-lg text-blue-100/80 max-w-2xl mx-auto">
-            Direct-from-lab bioequivalent formulations with 99.8% isolate purity and cold-chain integrity.
+          <p className="text-base sm:text-lg text-blue-100/80 max-w-2xl mx-auto">
+            Direct-from-lab bioequivalent formulations with 99.8% isolate purity
+            and cold-chain integrity.
           </p>
         </div>
       </section>
     );
   }
 
-  // Current active act index
+  // Active act index
   const currentActIndex =
     scrollProgress < 0.25 ? 0 : scrollProgress < 0.5 ? 1 : scrollProgress < 0.75 ? 2 : 3;
+
+  // More scroll height on mobile so animation doesn't rush through with
+  // fast momentum scrolling. Desktop gets 300vh, mobile gets 450vh.
+  const scrollHeight = isMobile ? "450vh" : "300vh";
 
   return (
     <div
       ref={containerRef}
       className="relative w-full"
-      style={{ height: "300vh" }} // 3x viewport height for optimal scroll pacing
+      style={{ height: scrollHeight }}
     >
-      {/* Pinned Sticky Viewport with Dynamic Mobile Viewport Support */}
+      {/* Pinned sticky viewport */}
       <div className="sticky top-0 left-0 w-full h-[100dvh] overflow-hidden bg-slate-950">
-        {/* Dynamic Theme Gradient Background */}
+        {/* Dynamic theme gradient */}
         <div
-          className="absolute inset-0 transition-colors duration-700 pointer-events-none"
+          className="absolute inset-0 transition-colors duration-700 pointer-events-none z-0"
           style={{
             background:
               scrollProgress < 0.5
-                ? `radial-gradient(ellipse at 50% 40%, rgba(30, 58, 138, 0.45) 0%, rgba(15, 23, 42, 0.95) 75%)`
-                : `radial-gradient(ellipse at 50% 40%, rgba(241, 245, 249, 0.98) 0%, rgba(226, 232, 240, 0.95) 80%)`,
+                ? "radial-gradient(ellipse at 50% 40%, rgba(30, 58, 138, 0.45) 0%, rgba(15, 23, 42, 0.95) 75%)"
+                : "radial-gradient(ellipse at 50% 40%, rgba(241, 245, 249, 0.98) 0%, rgba(226, 232, 240, 0.95) 80%)",
           }}
         />
 
-        {/* Lightweight 3D Canvas (60+ FPS Hardware-Accelerated) */}
+        {/* 3D Canvas */}
         <CinematicCanvas scrollProgress={scrollProgress} />
 
-        {/* Story Typography & Feature Overlay */}
+        {/* Story overlay */}
         <StoryOverlay scrollProgress={scrollProgress} />
 
-        {/* Floating Storyline Navigator & Showcase Controls */}
+        {/* Navigation bar */}
         <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-slate-900/85 backdrop-blur-xl border border-white/15 rounded-full shadow-2xl text-xs max-w-[96vw] overflow-x-auto scrollbar-none">
-          {/* Auto-Play Toggle */}
+          {/* Auto-play toggle */}
           <button
             onClick={() => setIsAutoPlaying(!isAutoPlaying)}
             className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-full font-bold transition-all shrink-0 text-[11px] sm:text-xs ${
@@ -190,7 +206,7 @@ export default function CinematicHeroScroll() {
 
           <div className="w-px h-3.5 bg-white/20 shrink-0" />
 
-          {/* Act Progress Pills */}
+          {/* Act pills */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {ACTS.map((act) => (
               <button
@@ -209,7 +225,7 @@ export default function CinematicHeroScroll() {
           </div>
         </div>
 
-        {/* Initial Scroll Prompt (Act I Only) */}
+        {/* Scroll prompt (Act I only) */}
         {scrollProgress < 0.12 && !isAutoPlaying && (
           <div className="absolute bottom-14 sm:bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-blue-200/80 animate-bounce pointer-events-none">
             <span className="text-[10px] sm:text-[11px] font-semibold tracking-widest uppercase">
