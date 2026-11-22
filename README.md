@@ -1,7 +1,7 @@
-# 🏥 MediCare Plus — Precision D2C Pharmaceutical Platform
+# 🏥 MediCare Plus — Online Pharmacy Demo (Next.js + PostgreSQL)
 
 > **Live Deployment:** [https://pharmacy-platform-ten.vercel.app](https://pharmacy-platform-ten.vercel.app)  
-> **Pharmacist & Inventory Admin Portal:** [https://pharmacy-platform-ten.vercel.app/admin](https://pharmacy-platform-ten.vercel.app/admin)
+> **Admin Portal:** [https://pharmacy-platform-ten.vercel.app/admin](https://pharmacy-platform-ten.vercel.app/admin)
 
 [![Production Website](https://img.shields.io/badge/Live%20Website-pharmacy--platform--ten.vercel.app-0070f3?style=for-the-badge&logo=vercel&logoColor=white)](https://pharmacy-platform-ten.vercel.app)
 [![Database](https://img.shields.io/badge/PostgreSQL-Neon%20Serverless-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech)
@@ -12,34 +12,37 @@
 
 ## 🌟 Overview
 
-**MediCare Plus** is an enterprise-grade Direct-to-Consumer (D2C) clinical pharmaceutical and healthcare platform engineered with strict CDSCO Schedule H compliance, real-time cold-chain IoT telemetry, autonomous multi-agent clinical assistance, and direct-from-lab formulation purity.
+**MediCare Plus** is a full-stack demo of a direct-to-consumer online pharmacy, built as a personal portfolio project. It covers the core flows of an e-commerce pharmacy: catalogue, cart and checkout, prescription upload, order tracking and an admin portal, backed by PostgreSQL.
+
+> **Demo project.** This is not a real pharmacy. No real orders are fulfilled, products and batch data are sample data, and nothing on the site is medical advice.
+
+**How it was built:** I designed the features and data model and directed AI coding agents to implement them, then reviewed, tested and deployed the result to Vercel with a Neon PostgreSQL database.
 
 ---
 
 ## 🚀 Key Features
 
-### 1. 🔬 4-Act Cinematic 3D Scroll Experience
-* Interactive **Three.js & React Three Fiber** 3D molecular simulation.
-* Smooth scroll progression visualizing cleanroom lab synthesis, enteric micro-encapsulation, analytical HPLC assays, and temperature-monitored cold-chain delivery.
+### 1. 🛒 Storefront and checkout
+* Product catalogue with search and filters, product pages, cart and checkout.
+* Animated 3D landing page built with **Three.js / React Three Fiber**.
+* Indian PIN code lookup for delivery estimates.
 
-### 2. 🤖 Autonomous Multi-Agent AI Clinical Assistant
-* **Direct-from-Lab Generic Substitution Engine**: Replaces high-cost market brand medications with verified 99.8% pure lab generics, saving patients up to 75%.
-* **CompassHealthcare Financial Relief**: Autonomous sentiment analysis and grant evaluation for budget-constrained patients.
-* **Drug-Drug Interaction (DDI) Checker**: Real-time multi-molecule clinical contraindication screening.
-* **Live India Post PIN Code Delivery Speed**: Direct logistics verification with cold-chain transit feasibility.
-* **Autonomous Cart & Address Actions**: Instant stock verification, coupon executions, and in-chat delivery address updates.
-* **Floating & Draggable UI**: Positionable assistant icon with boundary clamping to avoid obstructing checkout actions.
+### 2. 📄 Prescription and order flows
+* Prescription upload form (image/PDF) with the prescribing doctor's registration number captured at checkout. Verification is a manual admin step; there is no automated validation.
+* Refill subscriptions with reminder scheduling.
+* Order tracking page that shows **simulated** cold-chain temperature readings to demonstrate how sensor data could be displayed (no real IoT devices).
 
-### 3. 🛡️ Regulatory Compliance & Precision Commerce
-* **Schedule H Prescription Intake**: Verification workflow with doctor registration (MCI/SMC) validation.
-* **Chronic Refill Subscriptions**: Auto-refill schedules with 7-day pre-runout patient notifications.
-* **Certificate of Analysis (CoA) Vault**: Batch-level purity assays, heavy metal screenings, and ISO cleanroom certificates.
-* **Cold-Chain IoT Telemetry**: Real-time sensor logs tracking refrigerated products (2°C–8°C) with transit GPS coordinates.
+### 3. 🤖 Shopping assistant chatbot
+* Floating, draggable chat assistant.
+* Handles common requests (product lookup, generic alternatives, delivery speed by PIN code, address changes, discounts) with **keyword-based intent rules**, and falls back to a free hosted LLM API for open-ended questions.
 
-### 4. 🗄️ PostgreSQL Database & Prisma ORM
-* High-integrity relational schema for Products, Orders, OrderItems, Prescriptions, Refills, Batches, and IoT Telemetry.
-* Seamless hybrid repository pattern connecting to Neon Serverless PostgreSQL with in-memory offline fallback.
-* Instant Admin Catalogue Controls: In-table visibility toggles (`isVisible`), dynamic stock counters, and relational product lifecycle management.
+### 4. 💊 Drug interaction checker (demo)
+* Rule-based lookup against a small curated list of known interactions for the medicines in the catalogue. For demonstration only, not a clinical tool.
+
+### 5. 🗄️ Admin portal and data layer
+* Admin pages for products, stock, visibility toggles, orders, prescriptions and batches (with sample certificate-of-analysis data).
+* PostgreSQL (Neon) via Prisma ORM, with an in-memory fallback store for running without a database.
+* About 20 Next.js API routes.
 
 ---
 
@@ -90,7 +93,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 ## 🌐 Live URLs
 
 * **Storefront:** [https://pharmacy-platform-ten.vercel.app](https://pharmacy-platform-ten.vercel.app)
-* **Pharmacist Admin Portal:** [https://pharmacy-platform-ten.vercel.app/admin](https://pharmacy-platform-ten.vercel.app/admin)
+* **Admin Portal:** [https://pharmacy-platform-ten.vercel.app/admin](https://pharmacy-platform-ten.vercel.app/admin)
 * **Catalogue & Filters:** [https://pharmacy-platform-ten.vercel.app/products](https://pharmacy-platform-ten.vercel.app/products)
 * **Prescription Upload:** [https://pharmacy-platform-ten.vercel.app/prescriptions/upload](https://pharmacy-platform-ten.vercel.app/prescriptions/upload)
-* **Clinical Interaction Checker:** [https://pharmacy-platform-ten.vercel.app/interaction-checker](https://pharmacy-platform-ten.vercel.app/interaction-checker)
+* **Interaction Checker (demo):** [https://pharmacy-platform-ten.vercel.app/interaction-checker](https://pharmacy-platform-ten.vercel.app/interaction-checker)
